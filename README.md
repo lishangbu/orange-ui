@@ -8,7 +8,7 @@ Orange UI
 
 [Usage Document Online][1] | **Admin Ui Repository** | [Server Repository][2] | [Usage Document Repository][3] | [Java Document Online][4]
 
-[1]: http://lishangbu.github.io/orange-site/doc
+[1]: http://lishangbu.github.io/orange-site/docs
 
 [2]: https://github.com/lishangbu/orange
 
@@ -51,6 +51,6 @@ This project exists thanks to all the people who contribute.
 
 ## License
 
-[AGPL-3.0](https://opensource.org/license/agpl-v3)
+[MIT](https://opensource.org/license/mit)
 
-Copyright (c) 2024-present, ShangBu Li
+Copyright (c) 2025-present, ShangBu Li
