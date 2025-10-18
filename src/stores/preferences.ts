@@ -102,7 +102,7 @@ export const DEFAULT_PREFERENCES_OPTIONS = {
   },
 } as const
 
-const DEFAULT_THEME_COLOR = '#8e51ff'
+const DEFAULT_THEME_COLOR = '#ff6900'
 
 export const usePreferencesStore = defineStore('preferencesStore', () => {
   const preferences = useStorage<PreferencesOptions>('preferences', DEFAULT_PREFERENCES_OPTIONS)
