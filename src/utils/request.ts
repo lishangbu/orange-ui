@@ -3,24 +3,23 @@ import axios from 'axios'
 import { useDiscreteApi } from '@/composables'
 import { useTokenStore } from '@/stores'
 
-
 function createInstance() {
   const instance = axios.create({
     // 基础url
     baseURL: import.meta.env.VITE_BASE_API_URL,
     // 请求超时时间
     timeout: import.meta.env.VITE_BASE_API_TIMEOUT,
-    withCredentials: true // 跨域请求时是否需要凭证
+    withCredentials: true, // 跨域请求时是否需要凭证
   })
   instance.interceptors.request.use(
     (config) => {
-      const { accessTokenValue,hasLogin } = useTokenStore()
+      const { accessTokenValue, hasLogin } = useTokenStore()
       if (hasLogin) {
         config.headers['Authorization'] = `Bearer ${accessTokenValue}`
       }
       return config
     },
-    (error) => Promise.reject(error)
+    (error) => Promise.reject(error),
   )
   instance.interceptors.response.use(
     (response) => {
@@ -49,11 +48,27 @@ function createInstance() {
     },
     (error) => {
       // 统一错误处理
-      const errorMsg = error?.response?.data?.errorMessage || error.message || '请求异常'
-      const { message } = useDiscreteApi()
-      message.error(errorMsg)
-      return Promise.reject(errorMsg)
-    }
+      const data = error?.response?.data || {}
+      const { code } = data
+      if (code === 401) {
+        const { dialog } = useDiscreteApi()
+        dialog.error({
+          title: '登录过期',
+          content: '登录状态已过期，请重新登录',
+          positiveText: '确定',
+          negativeText: '取消',
+          onPositiveClick: () => {
+            dialog.destroyAll()
+            useTokenStore().cleanup()
+          },
+        })
+      } else {
+        const errorMsg = error?.response?.data?.errorMessage || error.message || '请求异常'
+        const { message } = useDiscreteApi()
+        message.error(errorMsg)
+        return Promise.reject(errorMsg)
+      }
+    },
   )
   return instance
 }
