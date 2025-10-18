@@ -6,7 +6,7 @@ import type { Component } from 'vue'
 
 import { useCrud } from '@/composables/useCrud'
 
-import ActionModal from './ActionModal.vue'
+import CrudFormActionModal from './CrudFormActionModal.vue'
 import SearchForm from './SearchForm.vue'
 
 /**
@@ -122,6 +122,7 @@ const tableColumns = computed(() => [
         h(NButton, {
           size: 'small',
           type: 'primary',
+          class: 'ml-2',
           onClick: () => handleEdit(row)
         }, { default: () => '编辑' }),
         h(NButton, {
@@ -158,7 +159,7 @@ const tableColumns = computed(() => [
       :columns="tableColumns"
       :data="data"
       :loading="loading" />
-    <ActionModal
+    <CrudFormActionModal
       :visible="modalVisible"
       :model-value="currentRow"
       :mode="modalMode"

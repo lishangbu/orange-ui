@@ -1,15 +1,21 @@
 import { axiosInstance } from '@/utils/request'
-import type { Role,RoleQuery } from '@/types/modules/auth/role'
+import type { Role, RoleQuery } from '@/types/modules/rbac/role'
+
+export interface ApiResult<T> {
+  code: number
+  data: T
+  errorMessage?: string
+}
 
 /**
  * 获取角色分页数据
  *
  * 发起 GET 请求获取角色的分页数据
  *
- * @param {RoleQuery} query - 查询参数，用于分页与筛选
- * @returns {Promise<Page<Role>>} - 后端返回的分页数据
+ * @param query - 角色分页查询参数
+ * @returns {Promise<ApiResult<Page<Role>>>} - 后端返回的分页数据
  */
-export async function getRolePage(query: RoleQuery): Promise<Page<Role>> {
+export async function getRolePage(query: RoleQuery): Promise<ApiResult<Page<Role>>> {
   return axiosInstance.request({
     url: '/role/page',
     method: 'GET',
@@ -23,9 +29,9 @@ export async function getRolePage(query: RoleQuery): Promise<Page<Role>> {
  * 发起 POST 请求新增角色
  *
  * @param {Partial<Role>} data - 新增的角色数据
- * @returns {Promise<Role>} - 新增后的角色数据
+ * @returns {Promise<ApiResult<Role>>} - 新增后的角色数据
  */
-export async function createRole(data: Partial<Role>): Promise<Role> {
+export async function createRole(data: Partial<Role>): Promise<ApiResult<Role>> {
   return axiosInstance.request({
     url: '/role',
     method: 'POST',
@@ -39,9 +45,9 @@ export async function createRole(data: Partial<Role>): Promise<Role> {
  * 发起 PUT 请求修改角色
  *
  * @param {Partial<Role>} data - 修改的角色数据，需包含主键
- * @returns {Promise<Role>} - 修改后的角色数据
+ * @returns {Promise<ApiResult<Role>>} - 修改后的角色数据
  */
-export async function updateRole(data: Partial<Role>): Promise<Role> {
+export async function updateRole(data: Partial<Role>): Promise<ApiResult<Role>> {
   return axiosInstance.request({
     url: '/role',
     method: 'PUT',
@@ -55,9 +61,9 @@ export async function updateRole(data: Partial<Role>): Promise<Role> {
  * 发起 DELETE 请求删除指定角色
  *
  * @param {string} id - 角色唯一标识
- * @returns {Promise<void>} - 删除操作结果
+ * @returns {Promise<ApiResult<void>>} - 删除操作结果
  */
-export async function deleteRole(id: string): Promise<void> {
+export async function deleteRole(id: string): Promise<ApiResult<void>> {
   return axiosInstance.request({
     url: `/role/${id}`,
     method: 'DELETE'

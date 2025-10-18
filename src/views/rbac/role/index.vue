@@ -2,9 +2,9 @@
 import { h } from 'vue'
 import { NTag, NSwitch, NSelect } from 'naive-ui'
 import { CrudTable, ScrollContainer } from '@/components'
-import { getRolePage, createRole, updateRole, deleteRole } from '@/api/auth/role'
+import { getRolePage, createRole, updateRole, deleteRole } from '@/api/rbac/role'
 import type { FieldConfig } from '@/components'
-import type { Role } from '@/types/modules/auth/role'
+import type { Role } from '@/types/modules/rbac/role'
 
 // 表格列配置
 const columns = [

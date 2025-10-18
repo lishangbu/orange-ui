@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 
 /**
  * 字段配置类型
- * 用于 CrudTable、SearchForm、ActionModal 等组件的字段配置
+ * 用于 CrudTable、SearchForm、CrudFormActionModal 等组件的字段配置
  */
 export interface FieldConfig {
   /** 字段标签 */

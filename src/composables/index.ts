@@ -1,5 +1,7 @@
 export * from './useComponentModifier'
 export * from './useComponentThemeOverrides'
+export * from './useCrud'
+export * from './useCrudTree'
 export * from './useDictionary'
 export * from './useDiscreteApi'
 export * from './useInjection'
