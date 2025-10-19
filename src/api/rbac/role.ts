@@ -1,12 +1,6 @@
 import { axiosInstance } from '@/utils/request'
 import type { Role, RoleQuery } from '@/types/modules/rbac/role'
 
-export interface ApiResult<T> {
-  code: number
-  data: T
-  errorMessage?: string
-}
-
 /**
  * 获取角色分页数据
  *

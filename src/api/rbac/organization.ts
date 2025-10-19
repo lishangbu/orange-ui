@@ -1,11 +1,9 @@
 import { axiosInstance } from '@/utils/request'
-import type { Organization, OrganizationTreeNode } from '@/types/modules/rbac/organization'
-
-export interface ApiResult<T> {
-  code: number
-  data: T
-  errorMessage?: string
-}
+import type {
+  Organization,
+  OrganizationQuery,
+  OrganizationTreeNode,
+} from '@/types/modules/rbac/organization'
 
 /**
  * 获取组织分页数据
@@ -15,14 +13,14 @@ export interface ApiResult<T> {
  * @param parentId - 父组织ID
  * @returns {Promise<Page<Organization>>} - 后端返回的分页数据
  */
-export async function listAllChildrenByParentId(
-  parentId: string | number,
-): Promise<ApiResult<OrganizationTreeNode[]>> {
+export async function getOrganizationPage(query: OrganizationQuery): Promise<ApiResult<Page<OrganizationTreeNode>>> {
   return axiosInstance.request({
-    url: `/organization/tree/children/${parentId}`,
+    url: '/organization/page',
     method: 'GET',
+    params: query
   })
 }
+
 
 /**
  * 获取指定组织及其所有下级组织的树结构
