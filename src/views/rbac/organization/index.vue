@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { FieldConfig } from '@/components'
-import { CrudTable, ScrollContainer } from '@/components'
+import { NInputNumber } from 'naive-ui'
+
 import {
   createOrganization,
   getOrganizationPage,
   removeOrganizationByAncestorId,
   updateOrganization,
 } from '@/api/rbac/organization'
-import { NInputNumber } from 'naive-ui'
+import type { FieldConfig } from '@/components'
+import { CrudTable, ScrollContainer } from '@/components'
 import type { TableColumns } from 'naive-ui/es/data-table/src/interface'
+import type { OrganizationTreeNode } from '@/types/modules/rbac/organization'
 
 // 表格列配置
 const columns: TableColumns = [
@@ -41,6 +43,7 @@ const searchFields: FieldConfig[] = [
 <template>
   <ScrollContainer wrapper-class="flex flex-col gap-y-2">
     <CrudTable
+      :row-key="(rowData: OrganizationTreeNode) => rowData.id"
       :columns="columns"
       :fields="fields"
       :search-fields="searchFields"

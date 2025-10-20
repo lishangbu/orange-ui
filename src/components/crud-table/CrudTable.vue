@@ -1,18 +1,21 @@
 <script lang="ts" setup>
+import { debounce, throttle } from 'lodash-es'
 import {
   type DataTableColumn,
   NButton,
   NDataTable,
   type PaginationProps,
   useDialog,
+  useMessage,
 } from 'naive-ui'
-import { type Component, computed, h, reactive, ref } from 'vue'
-
-import { useDiscreteApi } from '@/composables/useDiscreteApi'
+import { type Component, computed, h, onBeforeUnmount, reactive, ref, useAttrs } from 'vue'
 
 import CrudFormActionModal from './CrudFormActionModal.vue'
 import SearchForm from './SearchForm.vue'
 
+const message = useMessage()
+const dialog = useDialog()
+const attrs = useAttrs()
 /**
  * 通用 CRUD 表格组件
  * props:
@@ -30,13 +33,10 @@ const props = defineProps<{
     placeholder?: string
   }[]
   page: (params: any) => Promise<any>
-  create: (data: any) => Promise<any>
-  update: (data: any) => Promise<any>
-  remove: (id: string | number) => Promise<any>
+  create?: (data: any) => Promise<any>
+  update?: (data: any) => Promise<any>
+  remove?: (id: string | number) => Promise<any>
 }>()
-
-// Inlined useCrud logic
-const { message } = useDiscreteApi()
 
 const data = ref<any[]>([])
 const loading = ref(false)
@@ -56,12 +56,12 @@ const pagination = reactive<PaginationProps>({
   },
   onUpdatePage: (page: number) => {
     pagination.page = page
-    void fetchPage()
+    throttledFetchPage()
   },
   onUpdatePageSize: (pageSize: number) => {
     pagination.pageSize = pageSize
     pagination.page = 1
-    void fetchPage()
+    throttledFetchPage()
   },
 })
 
@@ -84,6 +84,41 @@ function fetchPage() {
     .finally(() => (loading.value = false))
 }
 
+// 使用 throttle 来限制 fetchPage 的调用频率（分页切换时）
+const throttledFetchPage = throttle(() => {
+  void fetchPage()
+}, 300)
+
+// 使用 debounce 来防抖搜索（避免用户连续输入触发大量请求）
+const debouncedSearch = debounce((searchParams: Record<string, any>) => {
+  const params = searchParams ?? {}
+
+  // 如果没有任何搜索条件，清空 query
+  if (!params || Object.keys(params).length === 0) {
+    for (const key of Object.keys(query)) {
+      delete (query as any)[key]
+    }
+  } else {
+    // 删除之前存在但本次未提交的条件
+    for (const key of Object.keys(query)) {
+      if (!(key in params)) {
+        delete (query as any)[key]
+      }
+    }
+
+    // 将新条件写入 query；对于空字符串、null 或 undefined 的值，视为清除该条件
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+        delete (query as any)[k]
+      } else {
+        ;(query as any)[k] = v
+      }
+    }
+  }
+  pagination.page = 1
+  void fetchPage()
+}, 300)
+
 function doCreate(item: Partial<any>) {
   if (!props.create) return
   props.create(item).then(() => message.success('新增成功'))
@@ -102,7 +137,6 @@ function doRemove(id: string | number) {
 // initial load
 void fetchPage()
 
-const dialog = useDialog()
 const modalVisible = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const modalLoading = ref(false)
@@ -129,7 +163,7 @@ function handleDelete(row: any) {
     negativeText: '取消',
     onPositiveClick: () => {
       doRemove(row.id)
-      fetchPage()
+      throttledFetchPage()
     },
   })
 }
@@ -139,13 +173,12 @@ function handleModalSubmit(payload: any) {
   const action = modalMode.value === 'create' ? doCreate : doUpdate
   action(payload)
   modalVisible.value = false
-  fetchPage()
+  throttledFetchPage()
 }
 
 function handleSearch(searchParams: Record<string, any>) {
-  Object.assign(query, searchParams)
-  pagination.page = 1
-  fetchPage()
+  // 使用 debouncedSearch 防抖处理
+  debouncedSearch(searchParams)
 }
 
 const actionsColumn: DataTableColumn<any> = {
@@ -180,6 +213,12 @@ const actionsColumn: DataTableColumn<any> = {
 }
 
 const tableColumns = computed(() => [...props.columns, actionsColumn])
+
+// 组件卸载时清理 debounce/throttle 的计时器，避免内存泄漏或卸载后调用
+onBeforeUnmount(() => {
+  debouncedSearch.cancel()
+  throttledFetchPage.cancel()
+})
 </script>
 
 <template>
@@ -206,6 +245,7 @@ const tableColumns = computed(() => [...props.columns, actionsColumn])
     </div>
 
     <NDataTable
+      v-bind="attrs"
       :columns="tableColumns"
       :data="data"
       :loading="loading"
