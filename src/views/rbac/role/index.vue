@@ -30,7 +30,7 @@ const fields: FieldConfig[] = [
     label: '启用状态',
     key: 'enabled',
     component: NSwitch,
-    props: { checkedValue: true, uncheckedValue: false }
+    componentProps: { checkedValue: true, uncheckedValue: false }
   }
 ]
 

@@ -23,13 +23,33 @@ const columns: TableColumns = [
 
 // 表单项配置
 const fields: FieldConfig[] = [
-  { label: '组织名称', key: 'name', required: true },
-  { label: '组织编码', key: 'code', required: true },
-  { label: '排序', key: 'sortOrder', component: NInputNumber, required: true, props: { min: 1 } },
+  {
+    label: '组织名称',
+    key: 'name',
+    formItemProps: {
+      required: true,
+    },
+  },
+  {
+    label: '组织编码',
+    key: 'code',
+    formItemProps: {
+      required: true,
+    },
+  },
+  {
+    label: '排序',
+    key: 'sortOrder',
+    component: NInputNumber,
+    formItemProps: {
+      required: true,
+    },
+    componentProps: { min: 1 },
+  },
   {
     label: '备注',
     key: 'remark',
-    props: { type: 'textarea', autosize: { minRows: 2, maxRows: 4 } },
+    componentProps: { type: 'textarea', autosize: { minRows: 2, maxRows: 4 } },
   },
 ]
 

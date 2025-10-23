@@ -13,6 +13,8 @@ import { type Component, computed, h, onBeforeUnmount, reactive, ref, useAttrs }
 import CrudFormActionModal from './CrudFormActionModal.vue'
 import SearchForm from './SearchForm.vue'
 
+import type { FieldConfig } from '@/components'
+
 const message = useMessage()
 const dialog = useDialog()
 const attrs = useAttrs()
@@ -24,7 +26,7 @@ const attrs = useAttrs()
  */
 const props = defineProps<{
   columns: Array<DataTableColumn>
-  fields: { label: string; key: string; component?: string | Component; [x: string]: any }[]
+  fields: FieldConfig[]
   searchFields?: {
     label: string
     key: string

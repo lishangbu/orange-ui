@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
-import { NButton, NForm, NFormItem, NInput, NModal } from 'naive-ui'
+import { NModal } from 'naive-ui'
 
-import type { Component } from 'vue'
+import BasicForm from '@/components/crud-table/BasicForm.vue'
+import type { FieldConfig } from '@/components'
+import type { ButtonConfig } from '@/components/crud-table/interface.ts'
 
 /**
  * 通用操作弹窗组件
@@ -19,7 +21,7 @@ const props = defineProps<{
   modelValue: Record<string, any>
   mode: 'create' | 'edit'
   loading?: boolean
-  fields: { label: string; key: string; component?: string | Component; [x: string]: any }[]
+  fields: FieldConfig[]
 }>()
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
@@ -28,6 +30,18 @@ const emit = defineEmits<{
 
 const form = ref<Record<string, any>>({})
 
+// 适配 BasicForm 的字段配置，尽可能复用已有类型
+const basicFormFields = computed<FieldConfig[]>(() =>
+  props.fields.map((f) => ({
+    key: f.key,
+    label: f.label,
+    component: f?.component,
+    componentProps: f?.componentProps,
+    placeholder: f?.placeholder || `请输入${f.label}`,
+    formItemProps: f?.formItemProps,
+  })),
+)
+
 watch(
   () => props.visible,
   (v) => {
@@ -35,7 +49,7 @@ watch(
       form.value = { ...props.modelValue }
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 function handleClose() {
@@ -45,31 +59,39 @@ function handleSubmit() {
   emit('submit', { ...form.value })
 }
 const title = computed(() => (props.mode === 'create' ? '新增' : '编辑'))
+const confirmButtonLabel = computed(() => (props.mode === 'create' ? '确认新增' : '确认修改'))
+const cancelButtonLabel = computed(() => (props.mode === 'create' ? '取消新增' : '取消修改'))
+
+const basicFormButtons = computed<ButtonConfig[]>(() => [
+  {
+    label: cancelButtonLabel.value,
+    type: 'error',
+    onClick: () => handleClose(),
+  },
+  {
+    label: confirmButtonLabel.value,
+    type: 'primary',
+    loading: props.loading,
+    onClick: () => handleSubmit(),
+  },
+])
 </script>
 
 <template>
-  <n-modal :show="visible" preset="card" :title="title" @close="handleClose" class="max-w-md w-full">
-    <n-form :model="form" label-placement="left" label-width="80">
-      <template v-for="field in fields" :key="field.key">
-        <n-form-item :label="field.label" :path="field.key">
-          <component
-            :is="field.component || NInput"
-            v-model:value="form[field.key]"
-            v-bind="field.props"
-            :placeholder="field.placeholder || `请输入${field.label}`"
-            v-if="field.editable !== false"
-          />
-          <span v-else class="text-gray-500">{{ form[field.key] }}</span>
-        </n-form-item>
-      </template>
-    </n-form>
-    <template #action>
-      <div style="display: flex; justify-content: center; gap: 12px;">
-        <n-button @click="handleClose">取消</n-button>
-        <n-button type="primary" :loading="loading" @click="handleSubmit">
-          {{ mode === 'create' ? '新增' : '保存' }}
-        </n-button>
-      </div>
-    </template>
+  <n-modal
+    :show="visible"
+    preset="card"
+    :title="title"
+    @close="handleClose"
+    class="w-full max-w-md"
+  >
+    <BasicForm
+      v-model="form.value"
+      :fields="basicFormFields"
+      :buttons="basicFormButtons"
+      label-placement="left"
+      label-width="80"
+      class="mb-0"
+    />
   </n-modal>
 </template>
