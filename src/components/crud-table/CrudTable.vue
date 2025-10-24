@@ -10,7 +10,7 @@ import {
 } from 'naive-ui'
 import { type Component, computed, h, onBeforeUnmount, reactive, ref, useAttrs } from 'vue'
 
-import CrudFormActionModal from './CrudFormActionModal.vue'
+import BasicFormModal from './BasicFormModal.vue'
 import SearchForm from './SearchForm.vue'
 
 import type { FieldConfig } from '@/components'
@@ -255,7 +255,7 @@ onBeforeUnmount(() => {
       remote
     />
 
-    <CrudFormActionModal
+    <BasicFormModal
       v-model:visible="modalVisible"
       :model-value="currentRow"
       :mode="modalMode"

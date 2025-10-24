@@ -43,10 +43,11 @@ const basicFormFields = computed<FieldConfig[]>(() =>
 )
 
 watch(
-  () => props.visible,
-  (v) => {
-    if (v) {
-      form.value = { ...props.modelValue }
+  [() => props.visible, () => props.modelValue],
+  ([visible, modelValue]) => {
+    if (visible) {
+      // 深拷贝，确保响应式且不会污染原始数据
+      form.value = modelValue ? JSON.parse(JSON.stringify(modelValue)) : {}
     }
   },
   { immediate: true },
@@ -86,7 +87,7 @@ const basicFormButtons = computed<ButtonConfig[]>(() => [
     class="w-full max-w-md"
   >
     <BasicForm
-      v-model="form.value"
+      v-model="form"
       :fields="basicFormFields"
       :buttons="basicFormButtons"
       label-placement="left"
