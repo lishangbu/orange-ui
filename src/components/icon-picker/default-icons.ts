@@ -7,6 +7,6 @@ export const DEFAULT_ICON_LIST = [
   'iconify-[mdi--security]',
   'iconify-[mdi--user-key]',
   'iconify-[mdi--company]',
-  'iconify-[mage--dashboard-chart]'
+  'iconify-[mage--dashboard-chart]',
 ]
 

@@ -1,5 +1,54 @@
-<script lang="ts" setup>
-import { debounce, throttle } from 'lodash-es'
+<template>
+  <div>
+    <SearchForm
+      v-if="searchFields && searchFields.length && showSearchForm"
+      :fields="searchFields"
+      :loading="loading"
+      @search="handleSearch"
+      class="mb-4"
+    />
+
+    <div class="mb-4 flex items-center justify-end gap-2">
+      <template v-if="computedHeaderActionButtons?.length > 0 && showHeaderAction">
+        <NButton
+          v-for="btn in computedHeaderActionButtons"
+          :key="btn.label"
+          :size="btn.size ?? 'small'"
+          :type="btn.type as any"
+          :render-icon="() => btn.renderIcon && btn.renderIcon()"
+          @click="() => btn.onClick && btn.onClick()"
+        >
+          {{ btn.label }}
+        </NButton>
+      </template>
+      <span
+        @click="() => (showSearchForm = !showSearchForm)"
+        class="iconify-[mdi--search] cursor-pointer text-xl transition-colors duration-200"
+      />
+    </div>
+
+    <NDataTable
+      v-bind="attrs"
+      :columns="tableColumns"
+      :data="data"
+      :loading="loading"
+      :pagination="pagination"
+      remote
+    />
+
+    <BasicFormModal
+      v-if="fields && fields.length"
+      v-model:visible="modalVisible"
+      :modelValue="currentRow"
+      :mode="modalMode"
+      :loading="modalLoading"
+      :fields="fields"
+      @submit="handleModalSubmit"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
 import {
   type DataTableColumn,
   NButton,
@@ -8,44 +57,32 @@ import {
   useDialog,
   useMessage,
 } from 'naive-ui'
-import { type Component, computed, h, onBeforeUnmount, reactive, ref, useAttrs } from 'vue'
+import { computed, h, reactive, ref, useAttrs, withDefaults } from 'vue'
 
 import BasicFormModal from './BasicFormModal.vue'
 import SearchForm from './SearchForm.vue'
 
-import type { FieldConfig } from '@/components'
+import type { ButtonConfig, TableConfig } from './types'
+
+const props = withDefaults(defineProps<TableConfig>(), {
+  fields: () => [],
+  searchFields: () => [],
+  actionButtons: undefined,
+  showActionColumn: true,
+  showHeaderAction: true,
+  headerActionButtons: undefined,
+})
 
 const message = useMessage()
 const dialog = useDialog()
 const attrs = useAttrs()
-/**
- * 通用 CRUD 表格组件
- * props:
- *  - columns, fields, searchFields
- *  - page/create/update/remove: API functions passed from parent
- */
-const props = defineProps<{
-  columns: Array<DataTableColumn>
-  fields: FieldConfig[]
-  searchFields?: {
-    label: string
-    key: string
-    component?: string | Component
-    props?: Record<string, any>
-    placeholder?: string
-  }[]
-  page: (params: any) => Promise<any>
-  create?: (data: any) => Promise<any>
-  update?: (data: any) => Promise<any>
-  remove?: (id: string | number) => Promise<any>
-}>()
 
 const data = ref<any[]>([])
 const loading = ref(false)
 const query = reactive<Record<string, any>>({})
 
 const pagination = reactive<PaginationProps>({
-  page: 1, //受控模式下的当前页
+  page: 1,
   pageSize: 10,
   showSizePicker: true,
   pageSizes: [10, 20, 30, 50, 100, 200, 500],
@@ -58,85 +95,48 @@ const pagination = reactive<PaginationProps>({
   },
   onUpdatePage: (page: number) => {
     pagination.page = page
-    throttledFetchPage()
+    void fetchPage()
   },
   onUpdatePageSize: (pageSize: number) => {
     pagination.pageSize = pageSize
     pagination.page = 1
-    throttledFetchPage()
+    void fetchPage()
   },
 })
 
-function fetchPage() {
+async function fetchPage() {
   if (!props.page) return
   loading.value = true
   const current = (pagination.page as number) ?? 1
   const size = (pagination.pageSize as number) ?? 10
-  props
-    .page({
-      current,
-      size,
-      ...query,
-    })
-    .then((res) => {
-      data.value = res?.data?.records ?? []
-      pagination.pageCount = Number(res?.data?.pages) ?? 0
-      pagination.itemCount = Number(res?.data?.total) ?? 0
-    })
-    .finally(() => (loading.value = false))
-}
-
-// 使用 throttle 来限制 fetchPage 的调用频率（分页切换时）
-const throttledFetchPage = throttle(() => {
-  void fetchPage()
-}, 300)
-
-// 使用 debounce 来防抖搜索（避免用户连续输入触发大量请求）
-const debouncedSearch = debounce((searchParams: Record<string, any>) => {
-  const params = searchParams ?? {}
-
-  // 如果没有任何搜索条件，清空 query
-  if (!params || Object.keys(params).length === 0) {
-    for (const key of Object.keys(query)) {
-      delete (query as any)[key]
-    }
-  } else {
-    // 删除之前存在但本次未提交的条件
-    for (const key of Object.keys(query)) {
-      if (!(key in params)) {
-        delete (query as any)[key]
-      }
-    }
-
-    // 将新条件写入 query；对于空字符串、null 或 undefined 的值，视为清除该条件
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
-        delete (query as any)[k]
-      } else {
-        ;(query as any)[k] = v
-      }
-    }
+  try {
+    const res = await props.page({ current, size, ...query })
+    data.value = res?.data?.records ?? []
+    pagination.pageCount = Number(res?.data?.pages) ?? 0
+    pagination.itemCount = Number(res?.data?.total) ?? 0
+  } finally {
+    loading.value = false
   }
-  pagination.page = 1
-  void fetchPage()
-}, 300)
+}
 
-function doCreate(item: Partial<any>) {
+async function doCreate(item: Partial<any>) {
   if (!props.create) return
-  props.create(item).then(() => message.success('新增成功'))
+  await props.create(item)
+  message.success('新增成功')
 }
 
-function doUpdate(item: Partial<any>) {
+async function doUpdate(item: Partial<any>) {
   if (!props.update) return
-  props.update(item).then(() => message.success('更新成功'))
+  await props.update(item)
+  message.success('更新成功')
 }
 
-function doRemove(id: string | number) {
+async function doRemove(id: string | number) {
   if (!props.remove) return
-  props.remove(id).then(() => message.success('删除成功'))
+  await props.remove(id)
+  message.success('删除成功')
 }
 
-// initial load
 void fetchPage()
 
 const modalVisible = ref(false)
@@ -163,25 +163,92 @@ function handleDelete(row: any) {
     content: `确定要删除ID为「${row.id}」的数据吗？`,
     positiveText: '删除',
     negativeText: '取消',
-    onPositiveClick: () => {
-      doRemove(row.id)
-      throttledFetchPage()
+    onPositiveClick: async () => {
+      await doRemove(row.id)
+      await fetchPage()
     },
   })
 }
 
-function handleModalSubmit(payload: any) {
+async function handleModalSubmit(payload: any) {
   modalLoading.value = true
   const action = modalMode.value === 'create' ? doCreate : doUpdate
-  action(payload)
-  modalVisible.value = false
-  throttledFetchPage()
+  try {
+    await action(payload)
+    modalVisible.value = false
+    await fetchPage()
+  } finally {
+    modalLoading.value = false
+  }
 }
 
 function handleSearch(searchParams: Record<string, any>) {
-  // 使用 debouncedSearch 防抖处理
-  debouncedSearch(searchParams)
+  const params = searchParams ?? {}
+
+  if (!params || Object.keys(params).length === 0) {
+    for (const key of Object.keys(query)) {
+      delete (query as any)[key]
+    }
+  } else {
+    for (const key of Object.keys(query)) {
+      if (!(key in params)) {
+        delete (query as any)[key]
+      }
+    }
+
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+        delete (query as any)[k]
+      } else {
+        ;(query as any)[k] = v
+      }
+    }
+  }
+  pagination.page = 1
+  void fetchPage()
 }
+
+function getDefaultActionButtons(): ButtonConfig[] {
+  return [
+    {
+      label: '编辑',
+      size: 'small',
+      type: 'primary',
+      renderIcon: () => h('span', { class: 'iconify-[mdi--edit]' }),
+      onClick: (row?: any) => handleEdit(row),
+    },
+    {
+      label: '删除',
+      size: 'small',
+      type: 'error',
+      renderIcon: () => h('span', { class: 'iconify-[mdi--delete]' }),
+      onClick: (row?: any) => handleDelete(row),
+    },
+  ]
+}
+
+function getDefaultHeaderActionButtons(): ButtonConfig[] {
+  return [
+    {
+      label: '新增',
+      size: 'small',
+      type: 'primary',
+      renderIcon: () => h('span', { class: 'iconify-[mdi--add]' }),
+      onClick: () => handleCreate(),
+    },
+  ]
+}
+
+const computedActionButtons = computed(() => {
+  return props.actionButtons && props.actionButtons.length
+    ? props.actionButtons
+    : getDefaultActionButtons()
+})
+const computedHeaderActionButtons = computed(() => {
+  return props.headerActionButtons && props.headerActionButtons.length
+    ? props.headerActionButtons
+    : getDefaultHeaderActionButtons()
+})
 
 const actionsColumn: DataTableColumn<any> = {
   title: '操作',
@@ -189,79 +256,30 @@ const actionsColumn: DataTableColumn<any> = {
   width: 120,
   align: 'center',
   render(row: any) {
-    return h('div', { style: 'display: flex; justify-content: center; gap: 8px;' }, [
-      h(
-        NButton,
-        {
-          size: 'small',
-          type: 'primary',
-          class: 'ml-2',
-          onClick: () => handleEdit(row),
-        },
-        { default: () => '编辑' },
+    return h(
+      'div',
+      { style: { display: 'flex', justifyContent: 'center', gap: '8px' } },
+      computedActionButtons.value.map((btn) =>
+        h(
+          NButton,
+          {
+            key: btn.label,
+            size: (btn.size as any) ?? 'small',
+            type: (btn.type as any) ?? undefined,
+            onClick: () => btn.onClick && btn.onClick(row),
+          },
+          {
+            icon: () => (btn.renderIcon ? btn.renderIcon() : null),
+            default: () => btn.label,
+          },
+        ),
       ),
-      h(
-        NButton,
-        {
-          size: 'small',
-          type: 'error',
-          class: 'ml-2',
-          onClick: () => handleDelete(row),
-        },
-        { default: () => '删除' },
-      ),
-    ])
+    )
   },
 }
 
-const tableColumns = computed(() => [...props.columns, actionsColumn])
-
-// 组件卸载时清理 debounce/throttle 的计时器，避免内存泄漏或卸载后调用
-onBeforeUnmount(() => {
-  debouncedSearch.cancel()
-  throttledFetchPage.cancel()
+const tableColumns = computed(() => {
+  const base = [...props.columns]
+  return props.showActionColumn ? [...base, actionsColumn] : base
 })
 </script>
-
-<template>
-  <div>
-    <SearchForm
-      v-if="searchFields && searchFields.length && showSearchForm"
-      :fields="searchFields"
-      :loading="loading"
-      @search="handleSearch"
-      class="mb-4"
-    />
-
-    <div class="mb-4 flex items-center justify-end gap-2">
-      <NButton
-        type="primary"
-        size="small"
-        @click="handleCreate"
-        >新增</NButton
-      >
-      <span
-        @click="showSearchForm = !showSearchForm"
-        class="iconify-[ic--baseline-search] cursor-pointer text-xl transition-colors duration-200"
-      />
-    </div>
-
-    <NDataTable
-      v-bind="attrs"
-      :columns="tableColumns"
-      :data="data"
-      :loading="loading"
-      :pagination="pagination"
-      remote
-    />
-
-    <BasicFormModal
-      v-model:visible="modalVisible"
-      :model-value="currentRow"
-      :mode="modalMode"
-      :loading="modalLoading"
-      :fields="fields"
-      @submit="handleModalSubmit"
-    />
-  </div>
-</template>

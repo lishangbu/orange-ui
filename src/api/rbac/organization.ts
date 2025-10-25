@@ -13,7 +13,7 @@ import type {
  * @param parentId - 父组织ID
  * @returns {Promise<Page<Organization>>} - 后端返回的分页数据
  */
-export async function getOrganizationPage(query: OrganizationQuery): Promise<ApiResult<Page<OrganizationTreeNode>>> {
+export async function getOrganizationPage(query?: OrganizationQuery): Promise<ApiResult<Page<OrganizationTreeNode>>> {
   return axiosInstance.request({
     url: '/organization/page',
     method: 'GET',

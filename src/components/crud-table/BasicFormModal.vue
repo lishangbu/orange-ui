@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
-import { NModal } from 'naive-ui'
+import { NButton, NModal } from 'naive-ui'
 
 import BasicForm from '@/components/crud-table/BasicForm.vue'
 import type { FieldConfig } from '@/components'
-import type { ButtonConfig } from '@/components/crud-table/interface.ts'
+import type { ButtonConfig } from '@/components'
+import type { InternalRowData } from 'naive-ui/es/data-table/src/interface'
 
 /**
  * 通用操作弹窗组件
@@ -28,7 +29,7 @@ const emit = defineEmits<{
   (e: 'submit', v: Record<string, any>): void
 }>()
 
-const form = ref<Record<string, any>>({})
+const form = ref<InternalRowData>({})
 
 // 适配 BasicForm 的字段配置，尽可能复用已有类型
 const basicFormFields = computed<FieldConfig[]>(() =>
@@ -79,7 +80,7 @@ const basicFormButtons = computed<ButtonConfig[]>(() => [
 </script>
 
 <template>
-  <n-modal
+  <NModal
     :show="visible"
     preset="card"
     :title="title"
@@ -91,8 +92,20 @@ const basicFormButtons = computed<ButtonConfig[]>(() => [
       :fields="basicFormFields"
       :buttons="basicFormButtons"
       label-placement="left"
-      label-width="80"
-      class="mb-0"
-    />
-  </n-modal>
+      label-width="auto"
+    >
+      <template #footer>
+        <div class="flex items-center justify-end gap-2">
+          <NButton
+            v-for="btn in basicFormButtons"
+            :key="btn.label"
+            :type="btn.type"
+            @click="btn.onClick"
+          >
+            {{ btn.label }}
+          </NButton>
+        </div>
+      </template>
+    </BasicForm>
+  </NModal>
 </template>
