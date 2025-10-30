@@ -3,9 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { NButton, NModal } from 'naive-ui'
 
 import BasicForm from '@/components/crud-table/BasicForm.vue'
-import type { FieldConfig } from '@/components'
-import type { ButtonConfig } from '@/components'
-import type { InternalRowData } from 'naive-ui/es/data-table/src/interface'
+import type { BasicFormModalProps, ButtonConfig, FieldConfig } from '@/components'
 
 /**
  * 通用操作弹窗组件
@@ -17,19 +15,13 @@ import type { InternalRowData } from 'naive-ui/es/data-table/src/interface'
  * @emits update:visible - 控制弹窗显示
  * @emits submit - 表单提交
  */
-const props = defineProps<{
-  visible: boolean
-  modelValue: Record<string, any>
-  mode: 'create' | 'edit'
-  loading?: boolean
-  fields: FieldConfig[]
-}>()
+const props = defineProps<BasicFormModalProps<any>>()
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
   (e: 'submit', v: Record<string, any>): void
 }>()
 
-const form = ref<InternalRowData>({})
+const form = ref<any>({})
 
 // 适配 BasicForm 的字段配置，尽可能复用已有类型
 const basicFormFields = computed<FieldConfig[]>(() =>

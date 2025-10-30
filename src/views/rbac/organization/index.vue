@@ -2,22 +2,23 @@
 import {
   type DataTableColumns,
   type DropdownProps,
-  NButton,
   NDropdown,
   NInputNumber,
+  useDialog,
   useMessage,
 } from 'naive-ui'
+import { h, nextTick, reactive, ref } from 'vue'
 
 import {
   createOrganization,
   getOrganizationPage,
   removeOrganizationByAncestorId,
+  removeOrganizationByAncestorIds,
   updateOrganization,
 } from '@/api/rbac/organization'
-import { h, nextTick, reactive, ref } from 'vue'
-import type { FieldConfig } from '@/components'
-import { BasicFormModal, CrudTable, ScrollContainer } from '@/components'
-import type { Organization, OrganizationTreeNode } from '@/types/modules/rbac/organization'
+import { BasicFormModal, CrudTable, ScrollContainer, type ButtonConfig, type FieldConfig } from '@/components'
+
+import type { Organization, OrganizationTreeNode } from '@/types/modules/rbac/organization' // 表格列配置
 
 // 表格列配置
 const columns: DataTableColumns<OrganizationTreeNode> = [
@@ -95,32 +96,69 @@ const searchFields: FieldConfig[] = [
   { label: '组织编码', key: 'code' },
 ]
 const message = useMessage()
+const dialog = useDialog()
 const modalVisible = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const modalLoading = ref(false)
 const currentRow = ref<OrganizationTreeNode | undefined>()
 const showDropdown = ref(false)
 const checkedRowKeys = ref<Array<number | string>>([])
-const handleCreateRootNode = function () {}
+const tableRef = ref<InstanceType<typeof CrudTable> | null>(null)
+
+const handleCreateRootNode = function () {
+  modalMode.value = 'create'
+  currentRow.value = undefined
+  modalVisible.value = true
+}
+const handleRemoveNodes = function () {
+  if (checkedRowKeys.value.length === 0) {
+    message.warning('请先选择要删除的组织')
+    return
+  }
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除选中的${checkedRowKeys.value.length}条数据吗？`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await removeOrganizationByAncestorIds(checkedRowKeys.value as string[])
+      message.success('删除成功')
+      checkedRowKeys.value = []
+      // call crud table fetchPage to refresh and update pagination
+      if (tableRef.value && typeof tableRef.value.fetchPage === 'function') {
+        await tableRef.value.fetchPage()
+      } else {
+        // fallback to calling API and refreshing by reloading page data
+        await getOrganizationPage()
+      }
+    },
+  })
+}
+
 async function handleModalSubmit(payload: any) {
   modalLoading.value = true
   const action = modalMode.value === 'create' ? doCreate : doUpdate
   try {
     await action(payload)
     modalVisible.value = false
-    await getOrganizationPage()
+    message.success(modalMode.value === 'create' ? '新增成功' : '更新成功')
+    // refresh the table via ref if available
+    if (tableRef.value && typeof tableRef.value.fetchPage === 'function') {
+      await tableRef.value.fetchPage()
+    } else {
+      await getOrganizationPage()
+    }
   } finally {
     modalLoading.value = false
   }
 }
+
 async function doCreate(item: Partial<Organization>) {
   await createOrganization(item)
-  message.success('新增成功')
 }
 
 async function doUpdate(item: Partial<Organization>) {
   await updateOrganization(item)
-  message.success('更新成功')
 }
 const dropdownOptions = reactive<DropdownProps>({
   x: 0,
@@ -129,10 +167,12 @@ const dropdownOptions = reactive<DropdownProps>({
     {
       label: '编辑',
       key: 'edit',
+      icon: () => h('span', { class: 'iconify-[mdi--edit]' }),
     },
     {
       label: () => h('span', { style: { color: 'red' } }, '删除'),
       key: 'delete',
+      icon: () => h('span', { class: 'iconify-[mdi--delete]', style: { color: 'red' } }),
     },
   ],
   onClickoutside: () => {
@@ -157,14 +197,31 @@ function rowProps(row: OrganizationTreeNode) {
     },
   }
 }
+const headerActionButtons: ButtonConfig[] = [
+  {
+    label: '新增根组织',
+    size: 'small',
+    type: 'primary',
+    renderIcon: () => h('span', { class: 'iconify-[mdi--add]' }),
+    onClick: () => handleCreateRootNode(),
+  },
+  {
+    label: '删除选中组织',
+    size: 'small',
+    type: 'error',
+    renderIcon: () => h('span', { class: 'iconify-[mdi--delete]' }),
+    onClick: () => handleRemoveNodes(),
+  },
+]
 </script>
 
 <template>
   <ScrollContainer wrapper-class="flex flex-col gap-y-2">
     <CrudTable
+      ref="tableRef"
       :show-action-column="false"
-      :show-header-action="false"
       :row-props="rowProps"
+      :header-action-buttons="headerActionButtons"
       v-model:checked-row-keys="checkedRowKeys"
       :row-key="(rowData: OrganizationTreeNode) => rowData.id"
       :columns="columns"
@@ -174,20 +231,7 @@ function rowProps(row: OrganizationTreeNode) {
       :create="createOrganization"
       :update="updateOrganization"
       :remove="removeOrganizationByAncestorId"
-    >
-      <template #header-action-buttons>
-        <NButton
-          type="primary"
-          size="small"
-          @click="handleCreateRootNode"
-        >
-          <template #icon>
-            <span class="iconify-[mdi--add]" />
-          </template>
-          新增根节点
-        </NButton>
-      </template>
-    </CrudTable>
+    />
     <BasicFormModal
       v-if="fields && fields.length"
       v-model:visible="modalVisible"

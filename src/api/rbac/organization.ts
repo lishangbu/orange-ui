@@ -2,7 +2,7 @@ import { axiosInstance } from '@/utils/request'
 import type {
   Organization,
   OrganizationQuery,
-  OrganizationTreeNode,
+  OrganizationTreeNode
 } from '@/types/modules/rbac/organization'
 
 /**
@@ -13,14 +13,15 @@ import type {
  * @param parentId - 父组织ID
  * @returns {Promise<Page<Organization>>} - 后端返回的分页数据
  */
-export async function getOrganizationPage(query?: OrganizationQuery): Promise<ApiResult<Page<OrganizationTreeNode>>> {
+export async function getOrganizationPage(
+  query?: OrganizationQuery,
+): Promise<ApiResult<Page<OrganizationTreeNode>>> {
   return axiosInstance.request({
     url: '/organization/page',
     method: 'GET',
-    params: query
+    params: query,
   })
 }
-
 
 /**
  * 获取指定组织及其所有下级组织的树结构
@@ -119,7 +120,9 @@ export async function removeOrganizationByAncestorId(
  * @param {string[]} ids - 组织标识列表
  * @returns {Promise<void>} - 删除操作结果
  */
-export async function removeOrganizationByAncestorIds(ids: string): Promise<ApiResult<void>> {
+export async function removeOrganizationByAncestorIds(
+  ids: string | string[],
+): Promise<ApiResult<void>> {
   return axiosInstance.request({
     url: `/organization/ancestors/${ids}`,
     method: 'DELETE',

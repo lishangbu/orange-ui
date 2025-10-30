@@ -14,9 +14,9 @@
           v-for="btn in computedHeaderActionButtons"
           :key="btn.label"
           :size="btn.size ?? 'small'"
-          :type="btn.type as any"
-          :render-icon="() => btn.renderIcon && btn.renderIcon()"
-          @click="() => btn.onClick && btn.onClick()"
+          :type="btn.type"
+          :render-icon="() => (btn.renderIcon ? btn.renderIcon() : null)"
+          @click="() => invokeHandler(btn.onClick)"
         >
           {{ btn.label }}
         </NButton>
@@ -64,7 +64,7 @@ import SearchForm from './SearchForm.vue'
 
 import type { ButtonConfig, TableConfig } from './types'
 
-const props = withDefaults(defineProps<TableConfig>(), {
+const props = withDefaults(defineProps<TableConfig<any>>(), {
   fields: () => [],
   searchFields: () => [],
   actionButtons: undefined,
@@ -250,6 +250,23 @@ const computedHeaderActionButtons = computed(() => {
     : getDefaultHeaderActionButtons()
 })
 
+/**
+ * 安全调用可能为单个函数或函数数组的回调
+ */
+function invokeHandler(
+  handler: ((...args: any[]) => any) | Array<(...args: any[]) => any> | undefined,
+  ...args: any[]
+) {
+  if (!handler) return
+  if (Array.isArray(handler)) {
+    for (const h of handler) {
+      if (typeof h === 'function') h(...args)
+    }
+  } else if (typeof handler === 'function') {
+    handler(...args)
+  }
+}
+
 const actionsColumn: DataTableColumn<any> = {
   title: '操作',
   key: 'actions',
@@ -266,7 +283,7 @@ const actionsColumn: DataTableColumn<any> = {
             key: btn.label,
             size: (btn.size as any) ?? 'small',
             type: (btn.type as any) ?? undefined,
-            onClick: () => btn.onClick && btn.onClick(row),
+            onClick: () => invokeHandler(btn.onClick, row),
           },
           {
             icon: () => (btn.renderIcon ? btn.renderIcon() : null),
@@ -282,4 +299,6 @@ const tableColumns = computed(() => {
   const base = [...props.columns]
   return props.showActionColumn ? [...base, actionsColumn] : base
 })
+
+defineExpose({ fetchPage })
 </script>
