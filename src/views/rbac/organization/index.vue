@@ -3,7 +3,7 @@ import {
   type DataTableColumns,
   type DropdownProps,
   NDropdown,
-  NInputNumber,
+  NInputNumber, NSwitch,
   NTreeSelect,
   type TreeSelectOption,
   useDialog,
@@ -85,6 +85,12 @@ const fields = computed<FieldConfig[]>(() => [
     },
   },
   {
+    label: '启用状态',
+    key: 'enabled',
+    component: NSwitch,
+    componentProps: { checkedValue: true, uncheckedValue: false }
+  },
+  {
     label: '排序',
     key: 'sortOrder',
     component: NInputNumber,
@@ -156,6 +162,7 @@ const handleCreateRootNode = function () {
   currentRow.value = {}
   modalVisible.value = true
   currentRow.value.parentId = '0'
+  currentRow.value.enabled = true
 }
 const handleRemoveNodes = function () {
   if (checkedRowKeys.value.length === 0) {
