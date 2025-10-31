@@ -4,21 +4,32 @@ import {
   type DropdownProps,
   NDropdown,
   NInputNumber,
+  NTreeSelect,
+  type TreeSelectOption,
   useDialog,
   useMessage,
 } from 'naive-ui'
-import { h, nextTick, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 
 import {
   createOrganization,
   getOrganizationPage,
+  listAllChildrenByParentId,
   removeOrganizationByAncestorId,
   removeOrganizationByAncestorIds,
   updateOrganization,
 } from '@/api/rbac/organization'
-import { BasicFormModal, CrudTable, ScrollContainer, type ButtonConfig, type FieldConfig } from '@/components'
+import {
+  BasicFormModal,
+  type ButtonConfig,
+  CrudTable,
+  type FieldConfig,
+  ScrollContainer,
+} from '@/components'
 
-import type { Organization, OrganizationTreeNode } from '@/types/modules/rbac/organization' // 表格列配置
+import type { Organization, OrganizationTreeNode } from '@/types/modules/rbac/organization'
+
+const treeSelectOptions = ref<TreeSelectOption[]>([])
 
 // 表格列配置
 const columns: DataTableColumns<OrganizationTreeNode> = [
@@ -31,10 +42,11 @@ const columns: DataTableColumns<OrganizationTreeNode> = [
 ]
 
 // 表单项配置
-const fields: FieldConfig[] = [
+const fields = computed<FieldConfig[]>(() => [
   {
     label: '上级组织',
     key: 'parentId',
+    placeholder: '请选择上级组织',
     formItemProps: {
       required: true,
       rule: {
@@ -42,6 +54,10 @@ const fields: FieldConfig[] = [
         trigger: ['input', 'blur'],
         message: '上级组织不能为空',
       },
+    },
+    component: NTreeSelect,
+    componentProps: {
+      options: treeSelectOptions.value,
     },
   },
   {
@@ -88,7 +104,7 @@ const fields: FieldConfig[] = [
     key: 'remark',
     componentProps: { type: 'textarea', autosize: { minRows: 2, maxRows: 4 } },
   },
-]
+])
 
 // 查询表单项配置
 const searchFields: FieldConfig[] = [
@@ -105,10 +121,41 @@ const showDropdown = ref(false)
 const checkedRowKeys = ref<Array<number | string>>([])
 const tableRef = ref<InstanceType<typeof CrudTable> | null>(null)
 
+function convertToTreeOptions(nodes: OrganizationTreeNode[]): TreeSelectOption[] {
+  return nodes.map((node) => {
+    const option: TreeSelectOption = {
+      label: String(node.name), // 保证为字符串
+      key: String(node.id), // 保证为字符串
+      value: String(node.id), // 保证为字符串
+    }
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      option.children = convertToTreeOptions(node.children)
+    }
+    return option
+  })
+}
+
+const loadTreeSelectOptions = function () {
+  listAllChildrenByParentId(0).then((res) => {
+    const tree = convertToTreeOptions(res.data || [])
+    // 最外层包裹一层根节点
+    treeSelectOptions.value = [{
+      label: '根节点',
+      key: '0',
+      value: '0',
+      children: tree
+    }]
+  })
+}
+onMounted(() => {
+  loadTreeSelectOptions()
+})
+
 const handleCreateRootNode = function () {
   modalMode.value = 'create'
-  currentRow.value = undefined
+  currentRow.value = {}
   modalVisible.value = true
+  currentRow.value.parentId = '0'
 }
 const handleRemoveNodes = function () {
   if (checkedRowKeys.value.length === 0) {

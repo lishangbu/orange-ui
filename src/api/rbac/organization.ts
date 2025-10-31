@@ -43,6 +43,25 @@ export async function getOrganizationWithDescendants(
     method: 'GET',
   })
 }
+/**
+ * 递归查询所有子节点（不包含当前节点）
+ *
+ * 发起 GET 请求，返回指定组织节点所有子孙节点的完整树形结构。
+ *
+ * @param {string|number} parentId - 上级组织标识
+ * @returns {Promise<OrganizationTreeNode[]>} - 包含所有下级的组织树节点列表
+ * @example
+ * // 获取 parentId=0 的组织的所有下级
+ * const tree = await listAllChildrenByParentId(0)
+ */
+export async function listAllChildrenByParentId(
+  parentId: string | number,
+): Promise<ApiResult<OrganizationTreeNode[]>> {
+  return axiosInstance.request({
+    url: `/organization/tree/children/${parentId}`,
+    method: 'GET',
+  })
+}
 
 /**
  * 获取指定组织信息
