@@ -31,7 +31,7 @@ const { navigationMode } = toRefsPreferencesStore()
       href="https://github.com/lishangbu/orange-ui"
       target="_blank"
     >
-      <span class="iconify-[mdi--github]" />
+      <span class="icon-[mdi--github]" />
     </ButtonAnimation>
     <FullScreen />
     <ThemeModePopover />

@@ -70,13 +70,13 @@ function handleReset() {
             type="primary"
             :loading="loading"
             @click="handleSearch"
-            :renderIcon="() => h('span', { class: 'iconify-[mdi--search]' })"
+            :renderIcon="() => h('span', { class: 'icon-[mdi--search]' })"
             >搜索</NButton
           >
           <NButton
             @click="handleReset"
             :disabled="loading"
-            :renderIcon="() => h('span', { class: 'iconify-[mdi--clear]' })"
+            :renderIcon="() => h('span', { class: 'icon-[mdi--clear]' })"
             >重置</NButton
           >
         </NButtonGroup>

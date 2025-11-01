@@ -23,7 +23,7 @@
       </template>
       <span
         @click="() => (showSearchForm = !showSearchForm)"
-        class="iconify-[mdi--search] cursor-pointer text-xl transition-colors duration-200"
+        class="icon-[mdi--search] cursor-pointer text-xl transition-colors duration-200"
       />
     </div>
 
@@ -214,14 +214,14 @@ function getDefaultActionButtons(): ButtonConfig[] {
       label: '编辑',
       size: 'small',
       type: 'primary',
-      renderIcon: () => h('span', { class: 'iconify-[mdi--edit]' }),
+      renderIcon: () => h('span', { class: 'icon-[mdi--edit]' }),
       onClick: (row?: any) => handleEdit(row),
     },
     {
       label: '删除',
       size: 'small',
       type: 'error',
-      renderIcon: () => h('span', { class: 'iconify-[mdi--delete]' }),
+      renderIcon: () => h('span', { class: 'icon-[mdi--delete]' }),
       onClick: (row?: any) => handleDelete(row),
     },
   ]
@@ -233,7 +233,7 @@ function getDefaultHeaderActionButtons(): ButtonConfig[] {
       label: '新增',
       size: 'small',
       type: 'primary',
-      renderIcon: () => h('span', { class: 'iconify-[mdi--add]' }),
+      renderIcon: () => h('span', { class: 'icon-[mdi--add]' }),
       onClick: () => handleCreate(),
     },
   ]

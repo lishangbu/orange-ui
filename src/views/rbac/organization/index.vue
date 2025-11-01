@@ -278,22 +278,22 @@ const dropdownOptions = reactive<DropdownProps>({
     {
       label: '添加同级节点',
       key: 'create',
-      icon: () => h('span', { class: 'iconify-[mdi--add]' }),
+      icon: () => h('span', { class: 'icon-[mdi--add]' }),
     },
     {
       label: '添加子级节点',
       key: 'append',
-      icon: () => h('span', { class: 'iconify-[mdi--add]' }),
+      icon: () => h('span', { class: 'icon-[mdi--add]' }),
     },
     {
       label: '编辑当前节点',
       key: 'edit',
-      icon: () => h('span', { class: 'iconify-[mdi--edit]' }),
+      icon: () => h('span', { class: 'icon-[mdi--edit]' }),
     },
     {
       label: () => h('span', { style: { color: 'red' } }, '删除当前节点'),
       key: 'delete',
-      icon: () => h('span', { class: 'iconify-[mdi--delete]', style: { color: 'red' } }),
+      icon: () => h('span', { class: 'icon-[mdi--delete]', style: { color: 'red' } }),
     },
   ],
   onClickoutside: () => {
@@ -331,14 +331,14 @@ const headerActionButtons: ButtonConfig[] = [
     label: '新增根组织',
     size: 'small',
     type: 'primary',
-    renderIcon: () => h('span', { class: 'iconify-[mdi--add]' }),
+    renderIcon: () => h('span', { class: 'icon-[mdi--add]' }),
     onClick: () => handleCreateRootNode(),
   },
   {
     label: '删除选中组织',
     size: 'small',
     type: 'error',
-    renderIcon: () => h('span', { class: 'iconify-[mdi--delete]' }),
+    renderIcon: () => h('span', { class: 'icon-[mdi--delete]' }),
     onClick: () => handleRemoveNodes(),
   },
 ]
