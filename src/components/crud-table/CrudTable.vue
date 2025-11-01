@@ -1,8 +1,9 @@
 <template>
   <div>
     <SearchForm
-      v-if="searchFields && searchFields.length && showSearchForm"
-      :fields="searchFields"
+      :gridProps="reactiveSearchGridProps"
+      @update:gridProps="onUpdateGridProps"
+      :fields="searchFieldsComputed"
       :loading="loading"
       @search="handleSearch"
       class="mb-4"
@@ -21,10 +22,6 @@
           {{ btn.label }}
         </NButton>
       </template>
-      <span
-        @click="() => (showSearchForm = !showSearchForm)"
-        class="icon-[mdi--search] cursor-pointer text-xl transition-colors duration-200"
-      />
     </div>
 
     <NDataTable
@@ -38,8 +35,8 @@
 
     <BasicFormModal
       v-if="fields && fields.length"
+      ref="basicFormModalRef"
       v-model:visible="modalVisible"
-      :modelValue="currentRow"
       :mode="modalMode"
       :loading="modalLoading"
       :fields="fields"
@@ -56,17 +53,19 @@ import {
   type PaginationProps,
   useDialog,
   useMessage,
+  type GridProps,
 } from 'naive-ui'
-import { computed, h, reactive, ref, useAttrs, withDefaults } from 'vue'
+import { computed, h, reactive, ref, useAttrs, withDefaults, toRefs } from 'vue'
 
 import BasicFormModal from './BasicFormModal.vue'
 import SearchForm from './SearchForm.vue'
 
-import type { ButtonConfig, TableConfig } from './types'
+import type { ButtonConfig, FieldProps, TableConfig } from './types'
 
 const props = withDefaults(defineProps<TableConfig<any>>(), {
   fields: () => [],
   searchFields: () => [],
+  searchGridProps: () => ({ cols: 5, xGap: 8, yGap: 4, collapsedRows: 1, collapsed: true }),
   actionButtons: undefined,
   showActionColumn: true,
   showHeaderAction: true,
@@ -76,6 +75,29 @@ const props = withDefaults(defineProps<TableConfig<any>>(), {
 const message = useMessage()
 const dialog = useDialog()
 const attrs = useAttrs()
+
+// 解构需要在模板中访问的 prop 字段
+const { showHeaderAction } = toRefs(props)
+
+// 父级对外的 emit：当本组件内部的 reactiveSearchGridProps 发生变化时会向上层发出 update:searchGridProps
+const emit = defineEmits<{
+  (e: 'update:searchGridProps', v: any): void
+}>()
+
+// 本地可写的 gridProps（来自 props.searchGridProps 的初始值），用于与子组件合并并保留引用
+const reactiveSearchGridProps = reactive((props.searchGridProps ?? {}) as Partial<GridProps>)
+
+function onUpdateGridProps(v: any) {
+  // 合并到本地对象，保留引用
+  Object.assign(reactiveSearchGridProps, v)
+  // 同步向外 emit（父组件可以选择替换或合并）
+  emit('update:searchGridProps', reactiveSearchGridProps)
+}
+
+// 仅使用 props.searchFields 作为传入子组件的 fields（不回退到 props.fields）
+const searchFieldsComputed = computed(() => {
+  return (props.searchFields ?? []) as FieldProps
+})
 
 const data = ref<any[]>([])
 const loading = ref(false)
@@ -143,17 +165,23 @@ const modalVisible = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const modalLoading = ref(false)
 const currentRow = ref<any>({})
-const showSearchForm = ref(false)
+
+// modal ref to set model on before opening
+const basicFormModalRef = ref<any>(null)
 
 function handleCreate() {
   modalMode.value = 'create'
   currentRow.value = {}
+  // set model on modal before showing
+  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 
 function handleEdit(row: any) {
   modalMode.value = 'edit'
   currentRow.value = { ...row }
+  // set model on modal before showing
+  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 

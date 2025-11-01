@@ -10,7 +10,7 @@ import {
   useDialog,
   useMessage,
 } from 'naive-ui'
-import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue'
 
 import {
   createOrganization,
@@ -24,7 +24,7 @@ import {
   BasicFormModal,
   type ButtonConfig,
   CrudTable,
-  type FieldConfig,
+  type FieldProps,
   ScrollContainer,
 } from '@/components'
 
@@ -43,7 +43,7 @@ const columns: DataTableColumns<OrganizationTreeNode> = [
 ]
 
 // 表单项配置
-const fields = computed<FieldConfig[]>(() => [
+const fields = computed<FieldProps[]>(() => [
   {
     label: '上级组织',
     key: 'parentId',
@@ -122,19 +122,29 @@ const fields = computed<FieldConfig[]>(() => [
 ])
 
 // 查询表单项配置
-const searchFields: FieldConfig[] = [
+const searchFields = computed<FieldProps[]>(() => [
   { label: '组织名称', key: 'name' },
   { label: '组织编码', key: 'code' },
-]
+  {
+    label: '上级组织',
+    key: 'parentId',
+    component: NTreeSelect,
+    componentProps: {
+      placeholder: '请选择上级组织',
+      options: treeSelectOptions.value,
+      filterable:true
+    },
+  },
+])
 const message = useMessage()
 const dialog = useDialog()
 const modalVisible = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const modalLoading = ref(false)
-const currentRow = ref<OrganizationTreeNode | undefined>()
-const showDropdown = ref(false)
-const checkedRowKeys = ref<Array<number | string>>([])
-const tableRef = ref<InstanceType<typeof CrudTable> | null>(null)
+const currentRow = ref<any>({})
+
+// modal ref to call setModel
+const basicFormModalRef = ref<any>(null)
 
 function convertToTreeOptions(nodes: OrganizationTreeNode[]): TreeSelectOption[] {
   return nodes.map((node) => {
@@ -191,7 +201,7 @@ const handleRemoveNodes = function () {
       await removeOrganizationByAncestorIds(checkedRowKeys.value as string[])
       message.success('删除成功')
       checkedRowKeys.value = []
-      await tableRef.value.fetchPage()
+      await tableRef.value?.fetchPage()
     },
   })
 }
@@ -208,6 +218,8 @@ const handleCreateCurrentNode = function () {
     sortOrder: 1,
   }
   modalMode.value = 'create'
+  // set model on modal before showing
+  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 const handleAppendCurrentNode = function () {
@@ -217,11 +229,14 @@ const handleAppendCurrentNode = function () {
   }
   const copiedCurrentRow = { ...currentRow.value }
   currentRow.value = {
-    parentId: copiedCurrentRow.id,
+    // copiedCurrentRow.id 可能为 undefined，按类型定义使用 null 作为兜底值
+    parentId: copiedCurrentRow.id ?? null,
     enabled: true,
     sortOrder: 1,
   }
   modalMode.value = 'create'
+  // set model on modal before showing
+  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 const handleEditCurrentNode = function () {
@@ -230,6 +245,8 @@ const handleEditCurrentNode = function () {
     return
   }
   modalMode.value = 'edit'
+  // set model on modal before showing
+  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 
@@ -244,9 +261,15 @@ const handleRemoveCurrentNode = function () {
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await removeOrganizationByAncestorId(currentRow.value.id)
+      // 先安全地取出 id 并做检查，避免将 undefined 传入 API
+      const id = currentRow.value?.id
+      if (id == null) {
+        message.error('组织 id 不存在，删除失败')
+        return
+      }
+      await removeOrganizationByAncestorId(id as string | number)
       message.success('删除成功')
-      await tableRef.value.fetchPage()
+      await tableRef.value?.fetchPage()
     },
   })
 }
@@ -258,7 +281,7 @@ async function handleModalSubmit(payload: any) {
     await action(payload)
     modalVisible.value = false
     message.success(modalMode.value === 'create' ? '新增成功' : '更新成功')
-    await tableRef.value.fetchPage()
+    await tableRef.value?.fetchPage()
   } finally {
     modalLoading.value = false
   }
@@ -363,8 +386,8 @@ const headerActionButtons: ButtonConfig[] = [
     />
     <BasicFormModal
       v-if="fields && fields.length"
+      ref="basicFormModalRef"
       v-model:visible="modalVisible"
-      :modelValue="currentRow"
       :mode="modalMode"
       :loading="modalLoading"
       :fields="fields"

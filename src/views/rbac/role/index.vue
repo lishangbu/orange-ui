@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { h } from 'vue'
-import { NTag, NSwitch, NSelect } from 'naive-ui'
+import { NSelect, NSwitch, NTag } from 'naive-ui'
+import { computed, h, ref } from 'vue'
+
+import { createRole, deleteRole, getRolePage, updateRole } from '@/api/rbac/role'
+import type { FieldProps } from '@/components'
 import { CrudTable, ScrollContainer } from '@/components'
-import { getRolePage, createRole, updateRole, deleteRole } from '@/api/rbac/role'
-import type { FieldConfig } from '@/components'
+
 import type { Role } from '@/types/modules/rbac/role'
+
+const roleEnabled = ref<boolean>(true)
 
 // 表格列配置
 const columns = [
@@ -18,41 +22,76 @@ const columns = [
       return row.enabled
         ? h(NTag, { type: 'success', size: 'small' }, { default: () => '启用' })
         : h(NTag, { type: 'error', size: 'small' }, { default: () => '禁用' })
-    }
-  }
+    },
+  },
 ]
 
 // 表单项配置
-const fields: FieldConfig[] = [
-  { label: '角色编码', key: 'code' },
-  { label: '角色名称', key: 'name' },
+const fields = computed<FieldProps[]>(() => [
+  {
+    label: '角色编码',
+    path: 'code',
+    rule: {
+      required: true,
+      trigger: ['input', 'blur'],
+      message: '角色编码不能为空',
+    },
+    componentProps: {
+      placeholder: '请输入角色编码',
+    },
+  },
+  {
+    label: '角色名称',
+    path: 'name',
+    rule: {
+      required: true,
+      trigger: ['input', 'blur'],
+      message: '角色名称不能为空',
+    },
+  },
   {
     label: '启用状态',
-    key: 'enabled',
+    path: 'enabled',
+    required: true,
     component: NSwitch,
-    componentProps: { checkedValue: true, uncheckedValue: false }
-  }
-]
+    componentProps: {
+      value: roleEnabled.value,
+      onUpdateValue(value: boolean) {
+        roleEnabled.value = value
+      },
+    },
+  },
+])
 
 // 查询表单项配置
-const enabledOptions = [
-  { label: '启用', value: true },
-  { label: '禁用', value: false }
-]
-
-const searchFields: FieldConfig[] = [
-  { label: '角色编码', key: 'code' },
-  { label: '角色名称', key: 'name' },
+const searchFields: FieldProps[] = [
+  {
+    label: '角色编码',
+    path: 'code',
+    componentProps: {
+      placeholder: '请输入角色编码进行搜索',
+    },
+  },
+  {
+    label: '角色名称',
+    path: 'name',
+    componentProps: {
+      placeholder: '请输入角色名称进行搜索',
+    },
+  },
   {
     label: '启用状态',
-    key: 'enabled',
+    path: 'enabled',
     component: NSelect,
-    placeholder: '请选择启用状态',
-    props: {
-      options: enabledOptions,
-      clearable: true
-    }
-  }
+    componentProps: {
+      placeholder: '请选择启用状态',
+      options: [
+        { label: '启用', value: 'true' },
+        { label: '禁用', value: 'false' },
+      ],
+      clearable: true,
+    },
+  },
 ]
 </script>
 

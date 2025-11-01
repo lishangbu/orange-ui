@@ -1,13 +1,11 @@
 <script setup lang="tsx">
-import { isFunction } from 'lodash-es'
+import type { MenuInst } from 'naive-ui'
 import { NMenu, NScrollbar } from 'naive-ui'
 import { storeToRefs } from 'pinia'
-import { h, ref, useTemplateRef, watch } from 'vue'
+import { ref, useTemplateRef, watch } from 'vue'
 
 import router from '@/router'
 import { toRefsPreferencesStore, useMenuStore } from '@/stores'
-
-import type { MenuInst, MenuProps } from 'naive-ui'
 
 const { sidebarMenu } = toRefsPreferencesStore()
 

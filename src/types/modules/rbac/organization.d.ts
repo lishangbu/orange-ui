@@ -10,10 +10,10 @@
  * @property sortOrder 排序顺序
  */
 export interface Organization {
-  id: number | string
-  parentId?: number | string | null
-  name: string
-  code: string
+  id?: number | string
+  parentId: number | string | null
+  name?: string
+  code?: string
   enabled: boolean
   remark?: string
   sortOrder: number

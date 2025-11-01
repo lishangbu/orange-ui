@@ -45,16 +45,13 @@ export const useMenuStore = defineStore('menu', () => {
    * 将后端菜单项数组递归转换为 MenuMixedOptions 结构
    *
    * @param items 后端菜单项数组
-   * @param parentId 父级菜单 id，根节点为 null
    * @returns MenuMixedOptions[]
    */
   function resolveMenuMixedOptions(
-    items: MenuItem[],
-    parentId: string | null = null
+    items: MenuItem[]
   ): MenuMixedOptions[] {
     return items.map(item => {
       const {
-        id = null,
         disabled = false,
         show = true,
         key,
@@ -64,7 +61,6 @@ export const useMenuStore = defineStore('menu', () => {
         name = '',
         redirect = '',
         component = '',
-        sortOrder = 0,
         extra,
         showTab,
         enableMultiTab,
@@ -72,8 +68,6 @@ export const useMenuStore = defineStore('menu', () => {
         children = []
       } = item || {}
       const menu: MenuMixedOptions = {
-        id,
-        parentId,
         disabled,
         show,
         key: key || name,
@@ -83,14 +77,13 @@ export const useMenuStore = defineStore('menu', () => {
         name,
         redirect: redirect || '',
         component,
-        sortOrder,
         meta:{
           showTab,
           enableMultiTab,
           pinned
         },
         extra: extra ? JSON.stringify(extra) : undefined,
-        children: children ?? [].length > 0 ? resolveMenuMixedOptions(children ?? [], id) : undefined
+        children: children ?? [].length > 0 ? resolveMenuMixedOptions(children ?? []) : undefined
       }
       return menu
     })

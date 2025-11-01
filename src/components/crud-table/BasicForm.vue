@@ -1,84 +1,92 @@
-<script setup lang="ts">
+<script lang="tsx">
 import { NForm, NFormItemGi, NGrid, NInput } from 'naive-ui'
-import { reactive, ref, toRaw, watch } from 'vue'
-import type { FieldConfig } from '@/components'
+import {
+  type Component,
+  createVNode,
+  defineComponent,
+  PropType,
+  reactive,
+  ref,
+  resolveDynamicComponent,
+} from 'vue'
 
-// 只声明自定义 props，其他属性透传
-const props = defineProps<{
-  fields: FieldConfig[]
-  modelValue?: Record<string, any>
-}>()
+import type { BasicFormProps, FieldProps } from './types'
+import type { FormInst } from 'naive-ui/es/form/src/interface'
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', v: Record<string, any>): void
-}>()
-
-const formRef = ref<any>()
-const formModel = reactive<Record<string, any>>({})
-
-function initModel() {
-  const src = props.modelValue ?? {}
-  for (const k of Object.keys(formModel)) delete formModel[k as string]
-  for (const f of props.fields ?? []) {
-    formModel[f.key as string] = f.key in src ? src[f.key as string] : undefined
-  }
-  for (const [k, v] of Object.entries(src)) {
-    if (!(k in formModel)) formModel[k as string] = v
-  }
-}
-
-initModel()
-
-watch(
-  () => props.modelValue,
-  (v) => {
-    if (!v) return
-    for (const [k, val] of Object.entries(v)) {
-      formModel[k as string] = val
-    }
+export default defineComponent({
+  name: 'BasicForm',
+  // 只声明 fields 为明确的 prop，其他 FormProps/Partial<GridProps] 将作为 attrs 透传
+  props: {
+    fields: { type: Array as PropType<BasicFormProps['fields']>, default: () => [] },
   },
-  { deep: true },
-)
+  setup(props: Readonly<BasicFormProps>, { slots, attrs, expose }) {
+    // 本地可变表单对象，保持引用稳定
+    const form = reactive<Record<string, any>>({})
 
-watch(
-  formModel,
-  (v) => {
-    emit('update:modelValue', toRaw(v))
-  },
-  { deep: true },
-)
-</script>
+    // 内部 NForm 引用，用于 expose 方法
+    const formRef = ref<FormInst | null>(null)
 
-<template>
-  <NForm
-    v-bind="$attrs"
-    :model="formModel"
-    ref="formRef"
-  >
-    <NGrid :cols="24">
-      <template
-        v-for="field in props.fields"
-        :key="field.key"
-      >
+    // 将内部 NForm 的方法暴露给父组件
+    expose({
+      validate: async (...args: any[]) => {
+        if (!formRef.value) return Promise.resolve()
+        // @ts-ignore
+        return (formRef.value as any).validate?.(...args)
+      },
+      validateFields: async (fields?: string[]) => {
+        if (!formRef.value) return Promise.resolve()
+        // @ts-ignore
+        return (formRef.value as any).validateFields?.(fields)
+      },
+      getModel: () => form,
+    })
+
+    function renderNFormItemGi(field: FieldProps) {
+      const { path, label, component, componentProps, ...formItemProps } = field
+
+      const key = String(path ?? '')
+
+      // 直接按顶层键读写 form（不支持嵌套点路径）
+      const value = form[key]
+      const onUpdateValue = (v: any) => {
+        form[key] = v
+      }
+
+      // 兼容不同组件的 v-model prop 名称：同时提供 value/modelValue 与相应的 update 事件
+      const vnodeProps: Record<string, any> = {
+        ...(componentProps ?? {}),
+        value,
+        'onUpdate:value': onUpdateValue,
+        modelValue: value,
+        'onUpdate:modelValue': onUpdateValue,
+      }
+
+      return (
         <NFormItemGi
-          v-bind="field.formItemProps ?? {}"
-          :path="(field.formItemProps && (field.formItemProps.path as any)) ?? field.key"
-          :label="
-            (field.formItemProps && (field.formItemProps.label as any)) ?? field.label ?? field.key
-          "
-          :span="field.formItemProps?.span ?? 24"
+          label={label}
+          path={path}
+          {...(formItemProps ?? {})}
         >
-          <component
-            :is="field.component ?? NInput"
-            v-model:value="formModel[field.key]"
-            v-bind="field.componentProps ?? {}"
-            :placeholder="field.placeholder"
-          />
+          {createVNode(
+            resolveDynamicComponent((component as Component) ?? NInput) as Component,
+            vnodeProps,
+          )}
         </NFormItemGi>
-      </template>
-    </NGrid>
-    <div>
-      <slot name="footer" />
-    </div>
-  </NForm>
-</template>
+      )
+    }
+
+    return () => (
+      <NForm
+        ref={formRef}
+        {...attrs}
+        model={form}
+      >
+        <NGrid {...attrs}>
+          {(props.fields ?? []).map((f) => renderNFormItemGi(f as FieldProps))}
+        </NGrid>
+        <div>{slots.footer ? slots.footer() : null}</div>
+      </NForm>
+    )
+  },
+})
+</script>
