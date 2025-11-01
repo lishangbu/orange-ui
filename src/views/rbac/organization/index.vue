@@ -3,7 +3,8 @@ import {
   type DataTableColumns,
   type DropdownProps,
   NDropdown,
-  NInputNumber, NSwitch,
+  NInputNumber,
+  NSwitch,
   NTreeSelect,
   type TreeSelectOption,
   useDialog,
@@ -58,6 +59,7 @@ const fields = computed<FieldConfig[]>(() => [
     component: NTreeSelect,
     componentProps: {
       options: treeSelectOptions.value,
+      disabled: true,
     },
   },
   {
@@ -88,7 +90,7 @@ const fields = computed<FieldConfig[]>(() => [
     label: '启用状态',
     key: 'enabled',
     component: NSwitch,
-    componentProps: { checkedValue: true, uncheckedValue: false }
+    componentProps: { checkedValue: true, uncheckedValue: false },
   },
   {
     label: '排序',
@@ -96,12 +98,19 @@ const fields = computed<FieldConfig[]>(() => [
     component: NInputNumber,
     formItemProps: {
       required: true,
-      rule: {
-        required: true,
-        trigger: ['input', 'blur'],
-        message: '排序必须不小于1',
-        min: 1,
-      },
+      rule: [
+        {
+          required: true,
+          trigger: ['input', 'blur'],
+          message: '排序不能为空',
+        },
+        {
+          type: 'number',
+          min: 1,
+          trigger: ['input', 'blur'],
+          message: '排序必须不小于1',
+        },
+      ],
     },
     componentProps: { min: 1 },
   },
@@ -130,9 +139,9 @@ const tableRef = ref<InstanceType<typeof CrudTable> | null>(null)
 function convertToTreeOptions(nodes: OrganizationTreeNode[]): TreeSelectOption[] {
   return nodes.map((node) => {
     const option: TreeSelectOption = {
-      label: String(node.name), // 保证为字符串
-      key: String(node.id), // 保证为字符串
-      value: String(node.id), // 保证为字符串
+      label: String(node.name),
+      key: String(node.id),
+      value: String(node.id),
     }
     if (Array.isArray(node.children) && node.children.length > 0) {
       option.children = convertToTreeOptions(node.children)
@@ -145,12 +154,14 @@ const loadTreeSelectOptions = function () {
   listAllChildrenByParentId(0).then((res) => {
     const tree = convertToTreeOptions(res.data || [])
     // 最外层包裹一层根节点
-    treeSelectOptions.value = [{
-      label: '根节点',
-      key: '0',
-      value: '0',
-      children: tree
-    }]
+    treeSelectOptions.value = [
+      {
+        label: '根节点',
+        key: '0',
+        value: '0',
+        children: tree,
+      },
+    ]
   })
 }
 onMounted(() => {
@@ -159,10 +170,12 @@ onMounted(() => {
 
 const handleCreateRootNode = function () {
   modalMode.value = 'create'
-  currentRow.value = {}
+  currentRow.value = {
+    parentId: '0',
+    enabled: true,
+    sortOrder: 1,
+  }
   modalVisible.value = true
-  currentRow.value.parentId = '0'
-  currentRow.value.enabled = true
 }
 const handleRemoveNodes = function () {
   if (checkedRowKeys.value.length === 0) {
@@ -171,20 +184,69 @@ const handleRemoveNodes = function () {
   }
   dialog.warning({
     title: '确认删除',
-    content: `确定要删除选中的${checkedRowKeys.value.length}条数据吗？`,
+    content: `确定要删除选中的${checkedRowKeys.value.length}条数据吗？删除组织会同时删除其所有子组织，且该操作不可恢复，请谨慎操作！`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
       await removeOrganizationByAncestorIds(checkedRowKeys.value as string[])
       message.success('删除成功')
       checkedRowKeys.value = []
-      // call crud table fetchPage to refresh and update pagination
-      if (tableRef.value && typeof tableRef.value.fetchPage === 'function') {
-        await tableRef.value.fetchPage()
-      } else {
-        // fallback to calling API and refreshing by reloading page data
-        await getOrganizationPage()
-      }
+      await tableRef.value.fetchPage()
+    },
+  })
+}
+
+const handleCreateCurrentNode = function () {
+  if (!currentRow.value) {
+    message.warning('未选中组织，无法添加')
+    return
+  }
+  const copiedCurrentRow = { ...currentRow.value }
+  currentRow.value = {
+    parentId: copiedCurrentRow.parentId,
+    enabled: true,
+    sortOrder: 1,
+  }
+  modalMode.value = 'create'
+  modalVisible.value = true
+}
+const handleAppendCurrentNode = function () {
+  if (!currentRow.value) {
+    message.warning('未选中组织，无法添加')
+    return
+  }
+  const copiedCurrentRow = { ...currentRow.value }
+  currentRow.value = {
+    parentId: copiedCurrentRow.id,
+    enabled: true,
+    sortOrder: 1,
+  }
+  modalMode.value = 'create'
+  modalVisible.value = true
+}
+const handleEditCurrentNode = function () {
+  if (!currentRow.value) {
+    message.warning('未选中组织，无法编辑')
+    return
+  }
+  modalMode.value = 'edit'
+  modalVisible.value = true
+}
+
+const handleRemoveCurrentNode = function () {
+  if (!currentRow.value) {
+    message.warning('未选中组织，无法删除')
+    return
+  }
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除选中的${currentRow.value.name}吗？删除${currentRow.value.name}会同时删除其所有子组织，且该操作不可恢复，请谨慎操作！`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await removeOrganizationByAncestorId(currentRow.value.id)
+      message.success('删除成功')
+      await tableRef.value.fetchPage()
     },
   })
 }
@@ -196,12 +258,7 @@ async function handleModalSubmit(payload: any) {
     await action(payload)
     modalVisible.value = false
     message.success(modalMode.value === 'create' ? '新增成功' : '更新成功')
-    // refresh the table via ref if available
-    if (tableRef.value && typeof tableRef.value.fetchPage === 'function') {
-      await tableRef.value.fetchPage()
-    } else {
-      await getOrganizationPage()
-    }
+    await tableRef.value.fetchPage()
   } finally {
     modalLoading.value = false
   }
@@ -219,12 +276,22 @@ const dropdownOptions = reactive<DropdownProps>({
   y: 0,
   options: [
     {
-      label: '编辑',
+      label: '添加同级节点',
+      key: 'create',
+      icon: () => h('span', { class: 'iconify-[mdi--add]' }),
+    },
+    {
+      label: '添加子级节点',
+      key: 'append',
+      icon: () => h('span', { class: 'iconify-[mdi--add]' }),
+    },
+    {
+      label: '编辑当前节点',
       key: 'edit',
       icon: () => h('span', { class: 'iconify-[mdi--edit]' }),
     },
     {
-      label: () => h('span', { style: { color: 'red' } }, '删除'),
+      label: () => h('span', { style: { color: 'red' } }, '删除当前节点'),
       key: 'delete',
       icon: () => h('span', { class: 'iconify-[mdi--delete]', style: { color: 'red' } }),
     },
@@ -232,8 +299,16 @@ const dropdownOptions = reactive<DropdownProps>({
   onClickoutside: () => {
     showDropdown.value = false
   },
-  onSelect: () => {
-    console.info(JSON.stringify(currentRow.value))
+  onSelect: (key) => {
+    if (key === 'create') {
+      handleCreateCurrentNode()
+    } else if (key === 'append') {
+      handleAppendCurrentNode()
+    } else if (key === 'edit') {
+      handleEditCurrentNode()
+    } else if (key === 'delete') {
+      handleRemoveCurrentNode()
+    }
     showDropdown.value = false
   },
 })
