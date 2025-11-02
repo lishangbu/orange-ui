@@ -7,11 +7,6 @@ import {
   type InputNumberProps,
   type InputProps,
   type ModalProps,
-  NInput,
-  NInputNumber,
-  NSelect,
-  NSwitch,
-  NTreeSelect,
   type SelectProps,
   type SwitchProps,
   type TreeSelectProps
@@ -23,7 +18,7 @@ import type { Component } from 'vue'
  * 字段配置类型
  */
 export type FieldProps = {
-  component?: Component | NInput | NInputNumber | NSelect | NSwitch | NTreeSelect
+  component?: Component
   componentProps?:
     | Record<string, any>
     | InputProps
@@ -55,17 +50,14 @@ export type TableConfig<T = Record<string, any>> = {
 /**
  * 基础表单组件属性
  * @prop {Array<FieldProps>} fields - 表单字段配置数组，按顺序渲染
- * @prop {GridProps} [gridProps] - 用于控制内部 Grid 布局的属性，直接透传给 Naive UI 的 NGrid
- * @prop {object} [model] - 可选的初始表单值，类型由泛型 T 指定（默认为 Record<string, any>）
  */
-export type BasicFormProps = {
+export type BasicFormProps<T = Record<string, any>> = {
   fields?: FieldProps[]
 } & FormProps & Partial<GridProps>
 
 /**
  * 通用操作弹窗组件属性
  * @prop {boolean} visible - 弹窗显示状态
- * @prop {object} modelValue - 表单数据
  * @prop {'create' | 'edit'} mode - 弹窗模式
  * @prop {boolean} loading - 提交按钮 loading 状态
  * @prop {Array} fields - 表单项配置，包含 label、key、component 等
@@ -81,8 +73,6 @@ export type BasicFormModalProps = {
  * 搜索表单组件属性
  * @prop {Array<FieldProps>} fields - 表单字段配置数组，按顺序渲染
  * @prop {boolean} [loading=false] - 查询按钮 loading 状态，true 时按钮不可交互显示 loading
- * @prop {GridProps} [gridProps] - 用于控制内部 Grid 布局的属性，直接透传给 Naive UI 的 NGrid
- * @prop {object} [model] - 可选的初始表单值，类型由泛型 T 指定（默认为 Record<string, any>）
  */
 export type SearchFormProps = {
   loading?: boolean

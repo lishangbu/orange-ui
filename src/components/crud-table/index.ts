@@ -5,7 +5,7 @@ export { default as SearchForm } from './SearchForm.vue'
 export type {
   FieldProps,
   ButtonConfig,
-  TableProps,
+  TableConfig,
   BasicFormProps,
   BasicFormModalProps,
   SearchFormProps,
