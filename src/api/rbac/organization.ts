@@ -1,4 +1,5 @@
 import { axiosInstance } from '@/utils/request'
+
 import type {
   Organization,
   OrganizationQuery,

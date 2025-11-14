@@ -10,13 +10,12 @@
 </template>
 
 <script lang="ts" setup>
+import { NSelect } from 'naive-ui'
 import { onMounted, ref, watch } from 'vue'
 
-import { NSelect } from 'naive-ui'
+import { useDictionary } from '@/composables'
 
 import type { SelectOption } from 'naive-ui'
-
-import { useDictionary } from '@/composables'
 
 interface Props {
   api: (params?: any) => Promise<any>

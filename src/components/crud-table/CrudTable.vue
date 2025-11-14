@@ -1,51 +1,4 @@
-<template>
-  <div>
-    <SearchForm
-      :gridProps="reactiveSearchGridProps"
-      @update:gridProps="onUpdateGridProps"
-      :fields="searchFieldsComputed"
-      :loading="loading"
-      @search="handleSearch"
-      class="mb-4"
-    />
-
-    <div class="mb-4 flex items-center justify-end gap-2">
-      <template v-if="computedHeaderActionButtons?.length > 0 && showHeaderAction">
-        <NButton
-          v-for="btn in computedHeaderActionButtons"
-          :key="btn.label"
-          :size="btn.size ?? 'small'"
-          :type="btn.type"
-          :render-icon="() => (btn.renderIcon ? btn.renderIcon() : null)"
-          @click="() => invokeHandler(btn.onClick)"
-        >
-          {{ btn.label }}
-        </NButton>
-      </template>
-    </div>
-
-    <NDataTable
-      v-bind="attrs"
-      :columns="tableColumns"
-      :data="data"
-      :loading="loading"
-      :pagination="pagination"
-      remote
-    />
-
-    <BasicFormModal
-      v-if="fields && fields.length"
-      ref="basicFormModalRef"
-      v-model:visible="modalVisible"
-      :mode="modalMode"
-      :loading="modalLoading"
-      :fields="fields"
-      @submit="handleModalSubmit"
-    />
-  </div>
-</template>
-
-<script setup lang="ts">
+<script lang="ts" setup>
 import {
   type DataTableColumn,
   NButton,
@@ -53,58 +6,42 @@ import {
   type PaginationProps,
   useDialog,
   useMessage,
-  type GridProps,
 } from 'naive-ui'
-import { computed, h, reactive, ref, useAttrs, withDefaults, toRefs } from 'vue'
+import { computed, h, reactive, ref } from 'vue'
 
-import BasicFormModal from './BasicFormModal.vue'
+import BasicFormDialogModal from './BasicFormDialogModal.vue'
 import SearchForm from './SearchForm.vue'
 
-import type { ButtonConfig, FieldProps, TableConfig } from './types'
+import type { FormOptions } from './types'
 
-const props = withDefaults(defineProps<TableConfig<any>>(), {
-  fields: () => [],
-  searchFields: () => [],
-  searchGridProps: () => ({ cols: 5, xGap: 8, yGap: 4, collapsedRows: 1, collapsed: true }),
-  actionButtons: undefined,
-  showActionColumn: true,
-  showHeaderAction: true,
-  headerActionButtons: undefined,
-})
-
-const message = useMessage()
-const dialog = useDialog()
-const attrs = useAttrs()
-
-// 解构需要在模板中访问的 prop 字段
-const { showHeaderAction } = toRefs(props)
-
-// 父级对外的 emit：当本组件内部的 reactiveSearchGridProps 发生变化时会向上层发出 update:searchGridProps
-const emit = defineEmits<{
-  (e: 'update:searchGridProps', v: any): void
+/**
+ * 通用 CRUD 表格组件
+ * props:
+ *  - columns, fields, searchFields
+ *  - page/create/update/remove: API functions passed from parent
+ */
+const props = defineProps<{
+  columns: Array<DataTableColumn>
+  // modal form options (Full FormOptions for BasicFormModal)
+  formOptions: FormOptions
+  // search form options (full FormOptions) instead of simple searchFields array
+  searchFormOptions?: FormOptions
+  // 初始数据转换函数（可用于设置默认值）
+  transformInitialData?: (data: Record<string, unknown>) => Record<string, unknown>
+  page: (params: any) => Promise<any>
+  create: (data: any) => Promise<any>
+  update: (data: any) => Promise<any>
+  remove: (id: string | number) => Promise<any>
 }>()
 
-// 本地可写的 gridProps（来自 props.searchGridProps 的初始值），用于与子组件合并并保留引用
-const reactiveSearchGridProps = reactive((props.searchGridProps ?? {}) as Partial<GridProps>)
-
-function onUpdateGridProps(v: any) {
-  // 合并到本地对象，保留引用
-  Object.assign(reactiveSearchGridProps, v)
-  // 同步向外 emit（父组件可以选择替换或合并）
-  emit('update:searchGridProps', reactiveSearchGridProps)
-}
-
-// 仅使用 props.searchFields 作为传入子组件的 fields（不回退到 props.fields）
-const searchFieldsComputed = computed(() => {
-  return (props.searchFields ?? []) as FieldProps
-})
+const message = useMessage()
 
 const data = ref<any[]>([])
 const loading = ref(false)
 const query = reactive<Record<string, any>>({})
 
 const pagination = reactive<PaginationProps>({
-  page: 1,
+  page: 1, //受控模式下的当前页
   pageSize: 10,
   showSizePicker: true,
   pageSizes: [10, 20, 30, 50, 100, 200, 500],
@@ -126,62 +63,59 @@ const pagination = reactive<PaginationProps>({
   },
 })
 
-async function fetchPage() {
+function fetchPage() {
   if (!props.page) return
   loading.value = true
   const current = (pagination.page as number) ?? 1
   const size = (pagination.pageSize as number) ?? 10
-  try {
-    const res = await props.page({ current, size, ...query })
-    data.value = res?.data?.records ?? []
-    pagination.pageCount = Number(res?.data?.pages) ?? 0
-    pagination.itemCount = Number(res?.data?.total) ?? 0
-  } finally {
-    loading.value = false
-  }
+  props
+    .page({
+      current,
+      size,
+      ...query,
+    })
+    .then((res) => {
+      data.value = res?.data?.records ?? []
+      pagination.pageCount = Number(res?.data?.pages) ?? 0
+      pagination.itemCount = Number(res?.data?.total) ?? 0
+    })
+    .finally(() => (loading.value = false))
 }
 
-async function doCreate(item: Partial<any>) {
+function doCreate(item: Partial<any>) {
   if (!props.create) return
-  await props.create(item)
-  message.success('新增成功')
+  props.create(item).then(() => message.success('新增成功'))
 }
 
-async function doUpdate(item: Partial<any>) {
+function doUpdate(item: Partial<any>) {
   if (!props.update) return
-  await props.update(item)
-  message.success('更新成功')
+  props.update(item).then(() => message.success('更新成功'))
 }
 
-async function doRemove(id: string | number) {
+function doRemove(id: string | number) {
   if (!props.remove) return
-  await props.remove(id)
-  message.success('删除成功')
+  props.remove(id).then(() => message.success('删除成功'))
 }
 
+// initial load
 void fetchPage()
 
+const dialog = useDialog()
 const modalVisible = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const modalLoading = ref(false)
 const currentRow = ref<any>({})
-
-// modal ref to set model on before opening
-const basicFormModalRef = ref<any>(null)
+const showSearchForm = ref(true)
 
 function handleCreate() {
   modalMode.value = 'create'
   currentRow.value = {}
-  // set model on modal before showing
-  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 
 function handleEdit(row: any) {
   modalMode.value = 'edit'
   currentRow.value = { ...row }
-  // set model on modal before showing
-  basicFormModalRef.value?.setModel?.(currentRow.value)
   modalVisible.value = true
 }
 
@@ -191,109 +125,41 @@ function handleDelete(row: any) {
     content: `确定要删除ID为「${row.id}」的数据吗？`,
     positiveText: '删除',
     negativeText: '取消',
-    onPositiveClick: async () => {
-      await doRemove(row.id)
-      await fetchPage()
+    onPositiveClick: () => {
+      doRemove(row.id)
+      fetchPage()
     },
   })
 }
 
-async function handleModalSubmit(payload: any) {
+function handleModalSubmit(payload: any) {
   modalLoading.value = true
   const action = modalMode.value === 'create' ? doCreate : doUpdate
-  try {
-    await action(payload)
-    modalVisible.value = false
-    await fetchPage()
-  } finally {
-    modalLoading.value = false
-  }
+  action(payload)
+  modalVisible.value = false
+  fetchPage()
 }
 
 function handleSearch(searchParams: Record<string, any>) {
-  const params = searchParams ?? {}
-
-  if (!params || Object.keys(params).length === 0) {
-    for (const key of Object.keys(query)) {
-      delete (query as any)[key]
-    }
-  } else {
-    for (const key of Object.keys(query)) {
-      if (!(key in params)) {
-        delete (query as any)[key]
-      }
-    }
-
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
-        delete (query as any)[k]
-      } else {
-        ;(query as any)[k] = v
-      }
-    }
-  }
+  Object.assign(query, searchParams)
   pagination.page = 1
-  void fetchPage()
+  fetchPage()
+}
+function handleSearchReset() {
+  console.log('触发了表单搜索的reset')
+  pagination.page = 1
+  fetchPage()
 }
 
-function getDefaultActionButtons(): ButtonConfig[] {
-  return [
-    {
-      label: '编辑',
-      size: 'small',
-      type: 'primary',
-      renderIcon: () => h('span', { class: 'icon-[mdi--edit]' }),
-      onClick: (row?: any) => handleEdit(row),
-    },
-    {
-      label: '删除',
-      size: 'small',
-      type: 'error',
-      renderIcon: () => h('span', { class: 'icon-[mdi--delete]' }),
-      onClick: (row?: any) => handleDelete(row),
-    },
-  ]
-}
-
-function getDefaultHeaderActionButtons(): ButtonConfig[] {
-  return [
-    {
-      label: '新增',
-      size: 'small',
-      type: 'primary',
-      renderIcon: () => h('span', { class: 'icon-[mdi--add]' }),
-      onClick: () => handleCreate(),
-    },
-  ]
-}
-
-const computedActionButtons = computed(() => {
-  return props.actionButtons && props.actionButtons.length
-    ? props.actionButtons
-    : getDefaultActionButtons()
-})
-const computedHeaderActionButtons = computed(() => {
-  return props.headerActionButtons && props.headerActionButtons.length
-    ? props.headerActionButtons
-    : getDefaultHeaderActionButtons()
+// accept full FormOptions for search form via props
+const searchFormOptions = computed<FormOptions>(() => {
+  return props.searchFormOptions ?? { formItemProps: [] }
 })
 
-/**
- * 安全调用可能为单个函数或函数数组的回调
- */
-function invokeHandler(
-  handler: ((...args: any[]) => any) | Array<(...args: any[]) => any> | undefined,
-  ...args: any[]
-) {
-  if (!handler) return
-  if (Array.isArray(handler)) {
-    for (const h of handler) {
-      if (typeof h === 'function') h(...args)
-    }
-  } else if (typeof handler === 'function') {
-    handler(...args)
-  }
-}
+// use provided formOptions prop directly for modal
+const formModalOptions = computed<FormOptions>(() => {
+  return props.formOptions
+})
 
 const actionsColumn: DataTableColumn<any> = {
   title: '操作',
@@ -301,32 +167,78 @@ const actionsColumn: DataTableColumn<any> = {
   width: 120,
   align: 'center',
   render(row: any) {
-    return h(
-      'div',
-      { style: { display: 'flex', justifyContent: 'center', gap: '8px' } },
-      computedActionButtons.value.map((btn) =>
-        h(
-          NButton,
-          {
-            key: btn.label,
-            size: (btn.size as any) ?? 'small',
-            type: (btn.type as any) ?? undefined,
-            onClick: () => invokeHandler(btn.onClick, row),
-          },
-          {
-            icon: () => (btn.renderIcon ? btn.renderIcon() : null),
-            default: () => btn.label,
-          },
-        ),
+    return h('div', { style: 'display: flex; justify-content: center; gap: 8px;' }, [
+      h(
+        NButton,
+        {
+          size: 'small',
+          type: 'primary',
+          class: 'ml-2',
+          onClick: () => handleEdit(row),
+        },
+        { default: () => '编辑' },
       ),
-    )
+      h(
+        NButton,
+        {
+          size: 'small',
+          type: 'error',
+          class: 'ml-2',
+          onClick: () => handleDelete(row),
+        },
+        { default: () => '删除' },
+      ),
+    ])
   },
 }
 
-const tableColumns = computed(() => {
-  const base = [...props.columns]
-  return props.showActionColumn ? [...base, actionsColumn] : base
-})
-
-defineExpose({ fetchPage })
+const tableColumns = computed(() => [...(props.columns || []), actionsColumn])
 </script>
+
+<template>
+  <div>
+    <SearchForm
+      v-if="
+        searchFormOptions.formItemProps && searchFormOptions.formItemProps.length && showSearchForm
+      "
+      v-model="query"
+      :formOptions="searchFormOptions"
+      :loading="loading"
+      @search="handleSearch"
+      @reset="handleSearchReset"
+      class="mb-4"
+    />
+
+    <div class="mb-4 flex items-center justify-end gap-2">
+      <NButton
+        type="primary"
+        size="small"
+        @click="handleCreate"
+        >新增</NButton
+      >
+      <span
+        @click="showSearchForm = !showSearchForm"
+        class="iconify-[ic--baseline-search] cursor-pointer text-xl transition-colors duration-200"
+      />
+    </div>
+
+    <NDataTable
+      :columns="tableColumns"
+      :data="data"
+      :loading="loading"
+      :pagination="pagination"
+      remote
+    />
+
+    <BasicFormDialogModal
+      v-model:show="modalVisible"
+      :formOptions="formModalOptions"
+      :model-value="currentRow"
+      :transform-initial-data="transformInitialData"
+      positive-text="确定"
+      negative-text="取消"
+      :title="modalMode === 'create' ? '新增' : '编辑'"
+      @submit="handleModalSubmit"
+    />
+  </div>
+</template>

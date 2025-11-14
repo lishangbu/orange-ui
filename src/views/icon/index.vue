@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { DEFAULT_ICON_LIST, DEFAULT_ICON_SET, IconPicker, ScrollContainer } from '@/components'
 import { computed, ref } from 'vue'
+
+import { DEFAULT_ICON_LIST, DEFAULT_ICON_SET, IconPicker, ScrollContainer } from '@/components'
 
 const selectedIcon = ref()
 const selectedPrefix = ref(DEFAULT_ICON_SET[0]) // 默认选中第一个前缀

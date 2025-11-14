@@ -1,12 +1,5 @@
 export { default as BasicForm } from './BasicForm.vue'
-export { default as BasicFormModal } from './BasicFormModal.vue'
+export { default as BasicFormDialogModal } from './BasicFormDialogModal.vue'
 export { default as CrudTable } from './CrudTable.vue'
 export { default as SearchForm } from './SearchForm.vue'
-export type {
-  FieldProps,
-  ButtonConfig,
-  TableConfig,
-  BasicFormProps,
-  BasicFormModalProps,
-  SearchFormProps,
-} from './types'
+export type { FormItemProps, FormOptions, BasicFormDialogModalOptions } from './types'

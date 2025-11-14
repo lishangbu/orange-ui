@@ -1,11 +1,12 @@
 <script setup lang="tsx">
-import type { MenuInst } from 'naive-ui'
 import { NMenu, NScrollbar } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import { ref, useTemplateRef, watch } from 'vue'
 
 import router from '@/router'
 import { toRefsPreferencesStore, useMenuStore } from '@/stores'
+
+import type { MenuInst } from 'naive-ui'
 
 const { sidebarMenu } = toRefsPreferencesStore()
 
