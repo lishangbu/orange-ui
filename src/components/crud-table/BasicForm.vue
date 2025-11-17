@@ -20,13 +20,13 @@
             :is="item.component"
             v-bind="item.componentProps"
             :value="innerModel[item.path as string]"
-            @update:value="(val) => handleUpdateFn(val, item.path)"
+            @update:value="createUpdateHandler(item.path)"
           />
           <slot
             v-else
             :item="item"
             :modelValue="innerModel[item.path as string]"
-            :onUpdate="(val) => handleUpdateFn(val, item.path)"
+            :onUpdate="createUpdateHandler(item.path)"
           ></slot>
         </n-form-item>
       </n-grid-item>
@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { NForm, NFormItem, NGrid, NGridItem } from 'naive-ui'
-import { defineExpose, reactive, ref, toRefs, watch } from 'vue'
+import { reactive, ref, toRefs, watch } from 'vue'
 
 import type { FormOptions } from './types'
 import type { FormInst, FormValidationError } from 'naive-ui'
@@ -53,57 +53,15 @@ const emit = defineEmits<{ (e: 'update:modelValue', value: Record<string, unknow
 const { modelValue } = toRefs(props)
 const innerModel = reactive<Record<string, unknown>>({ ...(modelValue.value || {}) })
 
-/**
- * 防止循环更新的标志位
- *
- * 数据流：
- * 1. 父组件更新 modelValue → watch(modelValue) → 更新 innerModel
- * 2. 用户输入 → innerModel 变化 → watch(innerModel) → emit update:modelValue
- *
- * 如果没有标志位：
- * - 步骤1会触发步骤2的watch → 不必要的emit
- * - 步骤2的emit可能导致父组件更新modelValue → 又触发步骤1 → 无限循环
- *
- * 因此两个标志位都是必要的：
- * - isUpdatingFromParent: 在处理父组件的更新时，阻止 innerModel watch 触发 emit
- * - isUpdatingToParent: 在 emit 后父组件可能同步更新 modelValue 时，阻止重复处理
- */
-let isUpdatingFromParent = false
-let isUpdatingToParent = false
-
-// keep innerModel in sync when parent modelValue changes
+// 单向同步：父组件更新 modelValue → 更新 innerModel
 watch(
   modelValue,
   (v) => {
-    // 防止因为 emit 导致的循环：如果当前正在 emit，则忽略父组件的更新
-    if (isUpdatingToParent) return
-
-    isUpdatingFromParent = true
+    // 清空并重新赋值
     Object.keys(innerModel).forEach((k) => delete innerModel[k])
     if (v && typeof v === 'object') {
       Object.keys(v).forEach((k) => (innerModel[k] = v[k]))
     }
-    // 使用微任务确保 innerModel 的 watch 能够检测到 isUpdatingFromParent 标志
-    Promise.resolve().then(() => {
-      isUpdatingFromParent = false
-    })
-  },
-  { deep: true },
-)
-
-// emit updates when innerModel changes
-watch(
-  innerModel,
-  () => {
-    // 防止不必要的 emit：如果是因为父组件更新导致的 innerModel 变化，则不 emit
-    if (isUpdatingFromParent) return
-
-    isUpdatingToParent = true
-    emit('update:modelValue', { ...innerModel })
-    // 使用微任务确保 emit 完成后再重置标志
-    Promise.resolve().then(() => {
-      isUpdatingToParent = false
-    })
   },
   { deep: true },
 )
@@ -113,11 +71,20 @@ const formInstRef = ref<FormInst>()
 
 function handleUpdateFn(val: unknown, path?: string | number | symbol) {
   if (typeof path === 'string' || typeof path === 'number') {
+    // 直接更新 innerModel
     innerModel[String(path)] = val
+    // 立即 emit 通知父组件（由父组件决定是否更新 props）
+    emit('update:modelValue', { ...innerModel })
   }
 }
 
+// factory to create update handlers to avoid inline arrow functions in template (TS implicit any issue)
+function createUpdateHandler(path?: string | number | symbol) {
+  return (val: unknown) => handleUpdateFn(val, path)
+}
+
 function resetForm() {
+  // 清空 innerModel 并同步 props.modelValue 的值
   Object.keys(innerModel).forEach((k) => delete innerModel[k])
   if (modelValue.value && typeof modelValue.value === 'object') {
     const mv = modelValue.value as Record<string, unknown>
@@ -125,6 +92,7 @@ function resetForm() {
       innerModel[k] = mv[k]
     })
   }
+  // 恢复验证状态
   formInstRef.value?.restoreValidation()
 }
 

@@ -38,7 +38,7 @@ const message = useMessage()
 
 const data = ref<any[]>([])
 const loading = ref(false)
-const query = reactive<Record<string, any>>({})
+const query = ref<Record<string, any>>({})
 
 const pagination = reactive<PaginationProps>({
   page: 1, //受控模式下的当前页
@@ -72,7 +72,7 @@ function fetchPage() {
     .page({
       current,
       size,
-      ...query,
+      ...query.value,
     })
     .then((res) => {
       data.value = res?.data?.records ?? []
@@ -141,13 +141,14 @@ function handleModalSubmit(payload: any) {
 }
 
 function handleSearch(searchParams: Record<string, any>) {
-  Object.assign(query, searchParams)
+  query.value = { ...(searchParams || {}) }
   pagination.page = 1
   fetchPage()
 }
+
 function handleSearchReset() {
-  console.log('触发了表单搜索的reset')
   pagination.page = 1
+  query.value = {}
   fetchPage()
 }
 

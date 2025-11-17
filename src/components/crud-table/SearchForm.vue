@@ -1,7 +1,12 @@
 <template>
   <div class="flex items-end gap-3">
     <div class="flex-1">
-      <BasicForm ref="formRef" v-model="internalModel" :formOptions="formOptions" >
+      <BasicForm
+        ref="formRef"
+        :modelValue="formModel"
+        @update:modelValue="handleFormModelUpdate"
+        :formOptions="formOptions"
+      >
         <template #suffix>
           <n-grid-item suffix>
             <n-button @click="onReset" ghost>{{ resetText }}</n-button>
@@ -15,7 +20,7 @@
 
 <script lang="ts">
 import { NButton,NGridItem } from 'naive-ui'
-import { defineComponent, reactive, toRefs, watch, ref } from 'vue'
+import { defineComponent, ref, watch, toRefs } from 'vue'
 
 import BasicForm from './BasicForm.vue'
 
@@ -45,44 +50,46 @@ export default defineComponent({
   emits: ['update:modelValue', 'search', 'reset'],
   setup(props, { emit }) {
     const { modelValue } = toRefs(props)
-    const internalModel = reactive<Record<string, unknown>>({ ...(modelValue.value || {}) })
     const formRef = ref<any>()
 
-    // sync parent -> internal
-    watch(modelValue, (v) => {
-      Object.keys(internalModel).forEach((k) => delete internalModel[k])
-      if (v && typeof v === 'object') {
-        Object.keys(v).forEach((k) => {
-          internalModel[k] = (v as Record<string, unknown>)[k]
-        })
-      }
-    }, { deep: true })
+    // 使用 ref 维护本地状态，支持立即读写
+    const formModel = ref<Record<string, unknown>>({ ...(modelValue.value || {}) })
 
-    // sync internal -> parent
-    watch(internalModel, (v) => {
-      emit('update:modelValue', { ...internalModel })
-    }, { deep: true })
+    // 只监听父组件的更新，单向同步 props.modelValue -> formModel
+    watch(
+      modelValue,
+      (newVal) => {
+        formModel.value = { ...(newVal || {}) }
+      },
+      { deep: true }
+    )
 
-    function onSearch() {
-      emit('search', { ...internalModel })
+    function handleFormModelUpdate(newVal: Record<string, unknown>) {
+      formModel.value = newVal
+      emit('update:modelValue', { ...newVal })
     }
 
-    function onReset() {
-      // clear internalModel
-      Object.keys(internalModel).forEach((k) => delete internalModel[k])
+    function onSearch() {
+      emit('search', { ...(formModel.value || {}) })
+    }
+
+    async function onReset() {
       emit('update:modelValue', {})
       emit('reset')
-      // optional: reset underlying form ref if available
+      // 等待父组件更新 props.modelValue，watch 会自动同步 formModel.value
+      await Promise.resolve()
+      // 调用 BasicForm 的 resetForm 重置其内部状态和验证
       if (formRef.value && typeof formRef.value.resetForm === 'function') {
         formRef.value.resetForm()
       }
     }
 
     return {
-      internalModel,
+      formModel,
       formRef,
       onSearch,
-      onReset
+      onReset,
+      handleFormModelUpdate
     }
   }
 })
